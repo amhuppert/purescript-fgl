@@ -1,18 +1,22 @@
-module Data.Graph.Inductive.Ops where
+module Data.Graph.Inductive.Construction where
 
 import Prelude
 
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Foldable (foldr)
-import Data.Graph.Inductive.Core (class DynGraph, Edge, LEdge, LNode, Node, Adj, (&))
+import Data.Foldable (class Foldable, foldM, foldr)
+import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Context, Edge, LEdge, LNode, Node, UGraph, (&))
 import Data.Graph.Inductive.Core as Core
 import Data.Maybe (Maybe(..), maybe)
+import Data.Traversable (class Traversable)
 import Data.Tuple (Tuple(..))
 
 insNode :: forall gr a b. DynGraph gr => LNode a -> gr a b -> gr a b
 insNode (Tuple node label) gr = Core.unsafeMerge newContext gr
   where newContext = { incomers: [], node, label, outgoers: [] }
+
+insNodes :: forall gr a b. DynGraph gr => Array (LNode a) -> gr a b -> gr a b
+insNodes ns g = foldr insNode g ns
 
 insEdge :: forall gr a b. DynGraph gr => LEdge b -> gr a b -> Either String (gr a b)
 insEdge (Tuple edge label) gr =
@@ -43,6 +47,9 @@ delEdge e graph =
        in c' `Core.unsafeMerge` remaining
   where nEq (Tuple _ o) = o /= e.to
 
+delEdges :: forall gr a b. DynGraph gr => Array Edge -> gr a b -> gr a b
+delEdges es g = foldr delEdge g es
+
 delLEdgeBy :: forall gr a b. DynGraph gr =>
               (Tuple b Node -> Adj b -> Adj b)
            -> LEdge b
@@ -55,16 +62,22 @@ delLEdgeBy f (Tuple e label) g =
       c { outgoers = f (Tuple label e.to) c.outgoers } `Core.unsafeMerge` remaining
 
 -- | Delete all edges equal to the one specified
-delLEdge :: forall gr a b. DynGraph gr => Eq b => LEdge b -> gr a b -> gr a b
-delLEdge  = delLEdgeBy (Array.filter <<< ne)
+delLEdges :: forall gr a b. DynGraph gr => Eq b => LEdge b -> gr a b -> gr a b
+delLEdges  = delLEdgeBy (Array.filter <<< ne)
   where ne (Tuple b1 n1) (Tuple b2 n2) = not (n1 == n2 && b1 == b2)
 
----------------------------
--- UTILITIES --------------
----------------------------
+-- | Build a Graph from a list of Contexts.
+--   The list should be in the order such that earlier Contexts depend upon later ones
+buildGraph :: forall gr a b f. DynGraph gr => Foldable f
+            => f (Context a b)
+            -> Either String (gr a b)
+buildGraph = foldM (flip Core.merge) Core.empty
 
-compose2 :: forall a b c d. (c -> d) -> (a -> b -> c) -> a -> b -> d
-compose2 = compose <<< compose
-
-infixr 8 compose2 as .:
-
+mkUnlabeledGraph :: forall t gr. Traversable t => Graph gr
+                    => t Node
+                    -> t Edge
+                    -> UGraph gr
+mkUnlabeledGraph nodes edges =
+  let le = map (_ `Core.labelEdge` unit) edges
+      ln = map (_ `Core.labelNode` unit) nodes
+   in Core.mkGraph ln le

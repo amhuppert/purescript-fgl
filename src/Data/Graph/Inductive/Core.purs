@@ -7,6 +7,7 @@ module Data.Graph.Inductive.Core
   , Adj
   , Context
   , Decomp
+  , UGraph
   , class Graph
   , empty
   , isEmpty
@@ -28,6 +29,13 @@ module Data.Graph.Inductive.Core
   , unsafeMerge
   , unlabelEdge
   , unlabelNode
+  , labelEdge
+  , labelNode
+  , context
+  , projectContextSucc
+  , projectContextPred
+  , compose2
+  , (.:)
   ) where
 
 import Prelude
@@ -36,8 +44,9 @@ import Data.Array as Array
 import Data.Either (Either, fromRight)
 import Data.Foldable (class Foldable)
 import Data.List (List)
-import Data.Maybe (Maybe, fromJust)
-import Data.Tuple (Tuple(..), fst)
+import Data.List as List
+import Data.Maybe (Maybe(..), fromJust, maybe)
+import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
 
 type Node = Int
@@ -64,11 +73,19 @@ type Decomp gr a b = { context :: (Context a b)
                      , remaining :: gr a b
                      }
 
+type UGraph gr = gr Unit Unit
+
 unlabelEdge :: forall b. LEdge b -> Edge
 unlabelEdge = fst
 
 unlabelNode :: forall a. LNode a -> Node
 unlabelNode = fst
+
+labelEdge :: forall b. Edge -> b -> LEdge b
+labelEdge e lab = Tuple e lab
+
+labelNode :: forall a. Node -> a -> LNode a
+labelNode n lab = Tuple n lab
 
 -- | A Graph parameterized by the types of the vertex and edge labels.
 class Graph gr where
@@ -106,6 +123,12 @@ class Graph gr <= DynGraph gr where
   merge :: forall a b. Context a b -> gr a b -> Either String (gr a b)
 
 infixr 8 merge as &
+
+newNodes :: forall gr a b. Graph gr => Int -> gr a b -> List Node
+newNodes count graph
+  | isEmpty graph = 0 List...  (count - 1)
+  | otherwise = let { max } = unsafePartial (fromJust (nodeRange graph))
+                 in (max + 1) List... (max + count)
 
 numEdges :: forall gr a b. (Graph gr) => gr a b -> Int
 numEdges = labEdges >>> Array.length
@@ -145,3 +168,37 @@ mapNodesEdges nodeMapper edgeMapper =
                        }
               )
   where mapAdj = map (\(Tuple label n) -> Tuple (edgeMapper label) n)
+
+nodes :: forall gr a b. Graph gr => gr a b -> Array Node
+nodes = labNodes >>> map unlabelNode
+
+edges :: forall gr a b. Graph gr => gr a b -> Array Edge
+edges = labEdges >>> map unlabelEdge
+
+---------------------------
+-- utilities --------------
+---------------------------
+
+compose2 :: forall a b c d. (c -> d) -> (a -> b -> c) -> a -> b -> d
+compose2 = compose <<< compose
+
+infixr 8 compose2 as .:
+
+-- projecting on context elements
+--
+projectContextSucc :: forall gr a b. Graph gr => gr a b -> Node -> Adj b
+projectContextSucc = maybe [] projectContextSucc' .: context
+
+projectContextPred :: forall gr a b. Graph gr => gr a b -> Node -> Adj b
+projectContextPred = maybe [] projectContextPred' .: context
+
+context :: forall gr a b. Graph gr => gr a b -> Node -> Maybe (Context a b)
+context g n = match n g >>= (_.context >>> Just)
+
+projectContextPred' :: forall a b. Context a b -> Adj b
+projectContextPred' c = c.incomers <> selfLoops
+  where selfLoops = Array.filter ((_ == c.node) <<< snd) c.outgoers
+
+projectContextSucc' :: forall a b. Context a b -> Adj b
+projectContextSucc' c = c.outgoers <> selfLoops
+  where selfLoops = Array.filter ((_ == c.node) <<< snd) c.incomers
