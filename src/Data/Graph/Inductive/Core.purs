@@ -36,6 +36,7 @@ module Data.Graph.Inductive.Core
   , projectContextPred
   , compose2
   , (.:)
+  , equal
   ) where
 
 import Prelude
@@ -43,9 +44,12 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either, fromRight)
 import Data.Foldable (class Foldable)
+import Data.Function (on)
 import Data.List (List)
 import Data.List as List
 import Data.Maybe (Maybe(..), fromJust, maybe)
+import Data.NonEmpty (NonEmpty)
+import Data.NonEmpty as NonEmpty
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
 
@@ -202,3 +206,47 @@ projectContextPred' c = c.incomers <> selfLoops
 projectContextSucc' :: forall a b. Context a b -> Adj b
 projectContextSucc' c = c.outgoers <> selfLoops
   where selfLoops = Array.filter ((_ == c.node) <<< snd) c.incomers
+
+----------------------------------------------------------------------
+-- GRAPH EQUALITY
+----------------------------------------------------------------------
+
+slabNodes :: forall gr a b. Graph gr => gr a b -> Array (LNode a)
+slabNodes = Array.sortBy (compare `on` fst) <<< labNodes
+
+glabEdges :: forall gr a b. Graph gr => gr a b -> Array (GroupEdges b)
+glabEdges = map (GEs <<< groupLabels)
+            <<< Array.groupBy (eqEdge `on` unlabelEdge)
+            <<< Array.sortBy (compareEdge `on` unlabelEdge)
+            <<< labEdges
+  where
+    groupLabels les = labelEdge (unlabelEdge (head les)) (map snd les)
+    head = NonEmpty.head
+    eqEdge a b = a.from == b.from && a.to == b.to
+    compareEdge a b =
+      case compare a.from b.from of
+        EQ -> compare a.to b.to
+        ne -> ne
+
+equal :: forall gr a b. Eq a => Eq b => Graph gr => gr a b -> gr a b -> Boolean
+equal g g' = slabNodes g == slabNodes g' && glabEdges g == glabEdges g'
+-- This assumes that nodes aren't repeated (which shouldn't happen for
+-- sane graph instances).  If node IDs are repeated, then the usage of
+-- slabNodes cannot guarantee stable ordering.
+
+-- Newtype wrapper just to test for equality of multiple edges.  This
+-- is needed because without an Ord constraint on `b' it is not
+-- possible to guarantee a stable ordering on edge labels.
+newtype GroupEdges b = GEs (LEdge (NonEmpty Array b))
+
+instance eqGroupEdges :: (Eq b) => Eq (GroupEdges b) where
+  eq (GEs (Tuple e1 ls1)) (GEs (Tuple e2 ls2)) =
+      e1.from == e2.from
+      && e1.to == e2.to
+      && eqArr (fromNE ls1) (fromNE ls2)
+    where fromNE = NonEmpty.fromNonEmpty (\head tail -> head Array.: tail)
+
+eqArr :: forall a. Eq a => Array a -> Array a -> Boolean
+eqArr xs ys = Array.null (xs Array.\\ ys) && Array.null (ys Array.\\ xs)
+-- OK to use \\ here as we want each value in xs to cancel a *single*
+-- value in ys.
