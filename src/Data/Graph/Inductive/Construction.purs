@@ -29,6 +29,9 @@ insEdge (Tuple edge label) gr =
   where source = Core.match edge.from gr
         add c = c { outgoers = c.outgoers `Array.snoc` (Tuple label edge.to) }
 
+insEdges :: forall gr a b f. DynGraph gr => Foldable f => f (LEdge b) -> gr a b -> Either String (gr a b)
+insEdges es g = foldM (flip insEdge) g es
+
 delNodes :: forall gr a b. DynGraph gr => Array Node -> gr a b -> gr a b
 delNodes vs g = foldr rm g vs
   where rm v currG = case Core.match v currG of
@@ -76,7 +79,7 @@ buildGraph = foldM (flip Core.merge) Core.empty
 mkUnlabeledGraph :: forall t gr. Traversable t => Graph gr
                     => t Node
                     -> t Edge
-                    -> UGraph gr
+                    -> Either String (UGraph gr)
 mkUnlabeledGraph nodes edges =
   let le = map (_ `Core.labelEdge` unit) edges
       ln = map (_ `Core.labelNode` unit) nodes

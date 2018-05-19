@@ -1,22 +1,24 @@
 module Data.Graph.Inductive.Subgraphs
   ( filterMap
-  , filterOnNodes
-  , filterOnLNodes
-  , filterOnNodeLabels
+  , filterNodes
+  , filterLNodes
+  , filterNodesOnLabel
+  , filterEdges
+  , filterEdgesOnLabel
   , subgraph
   ) where
 
-import Data.Graph.Inductive.Construction (delNodes)
 import Prelude
 
 import Data.Array as Array
 import Data.Either as Either
 import Data.Foldable (class Foldable)
-import Data.Graph.Inductive.Core (class DynGraph, Context, Node, LNode, (&))
+import Data.Graph.Inductive.Construction (delNodes)
+import Data.Graph.Inductive.Core (class DynGraph, Context, LNode, Node, LEdge, (&))
 import Data.Graph.Inductive.Core as Core
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Set as Set
-import Data.Tuple (fst, snd)
+import Data.Tuple (Tuple(..), fst, snd)
 
 filterMap :: forall gr a b c d. DynGraph gr
           => (Context a b -> Maybe (Context c d))
@@ -27,23 +29,23 @@ filterMap f = Core.fold foldFunc Core.empty
           c' <- f c
           Either.hush (c' & graph)
 
-filterOnNodes :: forall gr a b. DynGraph gr
+filterNodes :: forall gr a b. DynGraph gr
             => (Node -> Boolean)
             -> gr a b
             -> gr a b
-filterOnNodes p = filterOnLNodes (p <<< fst)
+filterNodes p = filterLNodes (p <<< fst)
 
-filterOnNodeLabels :: forall gr a b. DynGraph gr
+filterNodesOnLabel :: forall gr a b. DynGraph gr
             => (a -> Boolean)
             -> gr a b
             -> gr a b
-filterOnNodeLabels p = filterOnLNodes (p <<< snd)
+filterNodesOnLabel p = filterLNodes (p <<< snd)
 
-filterOnLNodes :: forall gr a b. DynGraph gr
+filterLNodes :: forall gr a b. DynGraph gr
              => (LNode a -> Boolean)
              -> gr a b
              -> gr a b
-filterOnLNodes p gr =
+filterLNodes p gr =
   delNodes (map fst <<< Array.filter (not <<< p) $ Core.labNodes gr) gr
 
 -- | Returns the subgraph induced by the supplied nodes
@@ -52,4 +54,18 @@ subgraph :: forall gr a b f. DynGraph gr => Foldable f
          -> gr a b
          -> gr a b
 subgraph vs = let vs'= Set.fromFoldable vs
-               in filterOnNodes (_ `Set.member` vs')
+               in filterNodes (_ `Set.member` vs')
+
+-- | Filter based on edge property.
+filterEdges :: forall gr a b. DynGraph gr => (LEdge b -> Boolean) -> gr a b -> gr a b
+filterEdges f = Core.fold cfilter Core.empty
+  where cfilter c g = c { incomers = incomers
+                        , outgoers = outgoers
+                        }
+                      `Core.unsafeMerge` g
+          where incomers = Array.filter (\(Tuple b u) -> f $ Tuple { from: u, to: c.node } b) c.incomers
+                outgoers = Array.filter (\(Tuple b w) -> f $ Tuple { from: c.node, to: w } b) c.outgoers
+
+-- | Filter based on edge label property.
+filterEdgesOnLabel :: forall gr a b. DynGraph gr => (b -> Boolean) -> gr a b -> gr a b
+filterEdgesOnLabel f = filterEdges (\(Tuple _ b) -> f b)

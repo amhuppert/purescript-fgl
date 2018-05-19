@@ -34,6 +34,8 @@ module Data.Graph.Inductive.Core
   , context
   , projectContextSucc
   , projectContextPred
+  , projectContextSucc'
+  , projectContextPred'
   , compose2
   , (.:)
   , equal
@@ -50,6 +52,7 @@ import Data.List as List
 import Data.Maybe (Maybe(..), fromJust, maybe)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty as NonEmpty
+import Data.Traversable (class Traversable)
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
 
@@ -103,7 +106,7 @@ class Graph gr where
   match :: forall a b. Node -> gr a b -> Maybe (Decomp gr a b)
 
   -- | Create a Graph from the provided nodes and edges
-  mkGraph :: forall f a b. Foldable f => f (LNode a) -> f (LEdge b) -> gr a b
+  mkGraph :: forall f a b. Traversable f => f (LNode a) -> f (LEdge b) -> Either String (gr a b)
 
   -- | Get a list of all LNodes in the Graph
   labNodes :: forall a b. gr a b -> Array (LNode a)
