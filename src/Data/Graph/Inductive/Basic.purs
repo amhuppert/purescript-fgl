@@ -3,8 +3,7 @@ module Data.Graph.Inductive.Basic where
 import Prelude
 
 import Data.Array as Array
-import Data.Graph.Inductive.Core (class DynGraph, class Graph, Context, UGraph, fold, mapContexts)
-import Data.Graph.Inductive.Inspection (suc')
+import Data.Graph.Inductive.Core (suc', class DynGraph, class Graph, Context, UGraph, fold, mapContexts)
 import Data.Tuple (Tuple(..))
 
 -- | Reverse the direction of all edges.

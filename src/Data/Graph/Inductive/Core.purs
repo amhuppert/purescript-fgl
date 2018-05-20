@@ -39,21 +39,70 @@ module Data.Graph.Inductive.Core
   , compose2
   , (.:)
   , equal
+  , insNode
+  , insNodes
+  , insEdges
+  , delNodes
+  , delNode
+  , delEdge
+  , delEdges
+  , delLEdgeBy
+  , delLEdges
+  , buildGraph
+  , mkUnlabeledGraph
+  , elem
+  , nodeLabel
+  , lneighbors
+  , lneighbors'
+  , neighbors
+  , suc
+  , pre
+  , lsuc
+  , lpre
+  , out
+  , inn
+  , outdeg
+  , indeg
+  , deg
+  , hasEdge
+  , hasNeighbor
+  , hasLEdge
+  , hasNeighborAdj
+  , labNode'
+  , neighbors'
+  , suc'
+  , pre'
+  , lpre'
+  , out'
+  , inn'
+  , outdeg'
+  , indeg'
+  , deg'
+  , filterMap
+  , filterNodes
+  , filterNodesOnLabel
+  , filterLNodes
+  , subgraph
+  , filterEdges
+  , filterEdgesOnLabel
   ) where
 
 import Prelude
 
 import Data.Array as Array
-import Data.Either (Either, fromRight)
-import Data.Foldable (class Foldable)
+import Data.Either (Either(..), fromRight)
+import Data.Either as Either
+import Data.Foldable (class Foldable, foldM, foldr)
 import Data.Function (on)
 import Data.List (List)
 import Data.List as List
-import Data.Maybe (Maybe(..), fromJust, maybe)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe, isJust, maybe)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty as NonEmpty
+import Data.Set as Set
 import Data.Traversable (class Traversable)
 import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple as Tuple
 import Partial.Unsafe (unsafePartial)
 
 type Node = Int
@@ -253,3 +302,252 @@ eqArr :: forall a. Eq a => Array a -> Array a -> Boolean
 eqArr xs ys = Array.null (xs Array.\\ ys) && Array.null (ys Array.\\ xs)
 -- OK to use \\ here as we want each value in xs to cancel a *single*
 -- value in ys.
+
+insNode :: forall gr a b. DynGraph gr => LNode a -> gr a b -> gr a b
+insNode (Tuple node label) gr = unsafeMerge newContext gr
+  where newContext = { incomers: [], node, label, outgoers: [] }
+
+insNodes :: forall gr a b. DynGraph gr => Array (LNode a) -> gr a b -> gr a b
+insNodes ns g = foldr insNode g ns
+
+insEdge :: forall gr a b. DynGraph gr => LEdge b -> gr a b -> Either String (gr a b)
+insEdge (Tuple edge label) gr =
+  maybe
+    (Left $ "insEdge: Cannot insert edge from non-existent vertex "
+          <> show edge.from)
+    (\c -> add c.context & c.remaining)
+    source
+
+  where source = match edge.from gr
+        add c = c { outgoers = c.outgoers `Array.snoc` (Tuple label edge.to) }
+
+insEdges :: forall gr a b f. DynGraph gr => Foldable f => f (LEdge b) -> gr a b -> Either String (gr a b)
+insEdges es g = foldM (flip insEdge) g es
+
+delNodes :: forall gr a b. DynGraph gr => Array Node -> gr a b -> gr a b
+delNodes vs g = foldr rm g vs
+  where rm v currG = case match v currG of
+          Nothing -> currG
+          Just { context, remaining } -> remaining
+
+delNode :: forall gr a b. DynGraph gr => Node -> gr a b -> gr a b
+delNode v = delNodes [v]
+
+delEdge :: forall gr a b. DynGraph gr => Edge -> gr a b -> gr a b
+delEdge e graph =
+  case match e.from graph of
+    Nothing -> graph
+    Just { context: c, remaining } ->
+      let c' = c { outgoers = Array.filter nEq c.outgoers }
+       in c' `unsafeMerge` remaining
+  where nEq (Tuple _ o) = o /= e.to
+
+delEdges :: forall gr a b. DynGraph gr => Array Edge -> gr a b -> gr a b
+delEdges es g = foldr delEdge g es
+
+delLEdgeBy :: forall gr a b. DynGraph gr =>
+              (Tuple b Node -> Adj b -> Adj b)
+           -> LEdge b
+           -> gr a b
+           -> gr a b
+delLEdgeBy f (Tuple e label) g =
+  case match e.from g of
+    Nothing -> g
+    Just { context: c, remaining } ->
+      c { outgoers = f (Tuple label e.to) c.outgoers } `unsafeMerge` remaining
+
+-- | Delete all edges equal to the one specified
+delLEdges :: forall gr a b. DynGraph gr => Eq b => LEdge b -> gr a b -> gr a b
+delLEdges  = delLEdgeBy (Array.filter <<< ne)
+  where ne (Tuple b1 n1) (Tuple b2 n2) = not (n1 == n2 && b1 == b2)
+
+-- | Build a Graph from a list of Contexts.
+--   The list should be in the order such that earlier Contexts depend upon later ones
+buildGraph :: forall gr a b f. DynGraph gr => Foldable f
+            => f (Context a b)
+            -> Either String (gr a b)
+buildGraph = foldM (flip merge) empty
+
+mkUnlabeledGraph :: forall t gr. Traversable t => Graph gr
+                    => t Node
+                    -> t Edge
+                    -> Either String (UGraph gr)
+mkUnlabeledGraph nodes edges =
+  let le = map (_ `labelEdge` unit) edges
+      ln = map (_ `labelNode` unit) nodes
+   in mkGraph ln le
+
+----------------------------------------------------------------
+-- GRAPH INSPECTION
+----------------------------------------------------------------
+
+-- | True if the Node is present in the Graph
+elem :: forall gr a b. Graph gr => Node -> gr a b -> Boolean
+elem n = match n >>> isJust
+
+nodeLabel :: forall gr a b. Graph gr => gr a b -> Node -> Maybe a
+nodeLabel g n = _.label <$> context g n
+
+lneighbors :: forall gr a b. Graph gr => gr a b -> Node -> Adj b
+lneighbors g n = fromMaybe [] (neighbors' <$> context g n)
+  where neighbors' c = c.incomers <> c.outgoers
+
+neighbors :: forall gr a b. Graph gr => gr a b -> Node -> Array Node
+neighbors g n = fromMaybe [] (neighbors' <$> context g n)
+  where neighbors' c = map snd c.incomers <> map snd c.outgoers
+
+suc :: forall gr a b. Graph gr => gr a b -> Node -> Array Node
+suc = map snd .: projectContextSucc
+
+pre :: forall gr a b. Graph gr => gr a b -> Node -> Array Node
+pre = map snd .: projectContextPred
+
+lsuc :: forall gr a b. Graph gr => gr a b -> Node -> Array (Tuple Node b)
+lsuc = map Tuple.swap .: projectContextSucc
+
+lpre :: forall gr a b. Graph gr => gr a b -> Node -> Array (Tuple Node b)
+lpre = map Tuple.swap .: projectContextPred
+
+out :: forall gr a b. Graph gr => gr a b -> Node -> Array (LEdge b)
+out g v = map packEdge $ projectContextSucc g v
+  where packEdge (Tuple label to) = Tuple { from: v, to } label
+
+inn :: forall gr a b. Graph gr => gr a b -> Node -> Array (LEdge b)
+inn g v = map packEdge $ projectContextPred g v
+  where packEdge (Tuple label from) = Tuple { from, to: v } label
+
+outdeg :: forall gr a b. Graph gr => gr a b -> Node -> Int
+outdeg = Array.length .: projectContextSucc
+
+indeg :: forall gr a b. Graph gr => gr a b -> Node -> Int
+indeg = Array.length .: projectContextPred
+
+-- | The degree of the 'Node'.
+deg :: forall gr a b. Graph gr => gr a b -> Node -> Int
+deg gr v = maybe 0 deg' $ context gr v
+
+-- | Checks if there is a directed edge between two nodes.
+hasEdge :: forall gr a b. Graph gr => gr a b -> Edge -> Boolean
+hasEdge gr e = e.to `Array.elem` suc gr e.from
+
+-- | Checks if there is an undirected edge between two nodes.
+hasNeighbor :: forall gr a b. Graph gr => gr a b -> Node -> Node -> Boolean
+hasNeighbor gr v w = w `Array.elem` neighbors gr v
+
+-- | Checks if there is a labelled edge between two nodes.
+hasLEdge :: forall gr a b. Graph gr => Eq b => gr a b -> LEdge b -> Boolean
+hasLEdge gr (Tuple e l) = Tuple e.to l `Array.elem` lsuc gr e.from
+
+-- | Checks if there is an undirected labelled edge between two nodes.
+hasNeighborAdj :: forall gr a b. Graph gr => Eq b
+                  => gr a b
+                  -> Node
+                  -> Tuple b Node
+                  -> Boolean
+hasNeighborAdj gr v a = a `Array.elem` lneighbors gr v
+
+----------------------------------------------------
+-- Context Inspection ------------------------------
+----------------------------------------------------
+
+-- | The 'LNode' from a 'Context'.
+labNode' :: forall a b. Context a b -> LNode a
+labNode' c = Tuple c.node c.label
+
+-- | All 'Node's linked to or from in a 'Context'.
+neighbors' :: forall a b. Context a b -> Array Node
+neighbors' c = map snd c.incomers <> map snd c.outgoers
+
+-- | All labelled links coming into or going from a 'Context'.
+lneighbors' :: forall a b. Context a b -> Adj b
+lneighbors' c = c.incomers <> c.outgoers
+
+-- | All 'Node's linked to in a 'Context'.
+suc' :: forall a b. Context a b -> Array (Node)
+suc' = map snd <<< projectContextSucc'
+
+-- | All 'Node's linked from in a 'Context'.
+pre' :: forall a b. Context a b -> Array Node
+pre' = map snd <<< projectContextPred'
+
+-- | All 'Node's linked from in a 'Context', and the label of the links.
+lsuc' :: forall a b. Context a b -> Array (Tuple Node b)
+lsuc' = map Tuple.swap <<< projectContextSucc'
+
+-- | All 'Node's linked from in a 'Context', and the label of the links.
+lpre' :: forall a b. Context a b -> Array (Tuple Node b)
+lpre' = map Tuple.swap <<< projectContextPred'
+
+-- | All outward-directed 'LEdge's in a 'Context'.
+out' :: forall a b. Context a b -> Array (LEdge b)
+out' c = map (\(Tuple l to) -> Tuple { from: c.node, to } l) (projectContextSucc' c)
+
+-- | All inward-directed 'LEdge's in a 'Context'.
+inn' :: forall a b. Context a b -> Array (LEdge b)
+inn' c = map (\(Tuple l from) -> Tuple { from, to: c.node } l) (projectContextPred' c)
+
+-- | The outward degree of a 'Context'.
+outdeg' :: forall a b. Context a b -> Int
+outdeg' = Array.length <<< projectContextSucc'
+
+-- | The inward degree of a 'Context'.
+indeg' :: forall a b. Context a b -> Int
+indeg' = Array.length <<< projectContextPred'
+
+-- | The degree of a 'Context'.
+deg' :: forall a b. Context a b -> Int
+deg' c = Array.length c.incomers + Array.length c.outgoers
+
+--------------------------------------------------------
+-- SUBGRAPHS
+--------------------------------------------------------
+
+filterMap :: forall gr a b c d. DynGraph gr
+          => (Context a b -> Maybe (Context c d))
+          -> gr a b
+          -> gr c d
+filterMap f = fold foldFunc empty
+  where foldFunc c graph = fromMaybe graph do
+          c' <- f c
+          Either.hush (c' & graph)
+
+filterNodes :: forall gr a b. DynGraph gr
+            => (Node -> Boolean)
+            -> gr a b
+            -> gr a b
+filterNodes p = filterLNodes (p <<< fst)
+
+filterNodesOnLabel :: forall gr a b. DynGraph gr
+            => (a -> Boolean)
+            -> gr a b
+            -> gr a b
+filterNodesOnLabel p = filterLNodes (p <<< snd)
+
+filterLNodes :: forall gr a b. DynGraph gr
+             => (LNode a -> Boolean)
+             -> gr a b
+             -> gr a b
+filterLNodes p gr =
+  delNodes (map fst <<< Array.filter (not <<< p) $ labNodes gr) gr
+
+-- | Returns the subgraph induced by the supplied nodes
+subgraph :: forall gr a b f. DynGraph gr => Foldable f
+         => f Node
+         -> gr a b
+         -> gr a b
+subgraph vs = let vs'= Set.fromFoldable vs
+               in filterNodes (_ `Set.member` vs')
+
+-- | Filter based on edge property.
+filterEdges :: forall gr a b. DynGraph gr => (LEdge b -> Boolean) -> gr a b -> gr a b
+filterEdges f = fold cfilter empty
+  where cfilter c g = c { incomers = incomers
+                        , outgoers = outgoers
+                        }
+                      `unsafeMerge` g
+          where incomers = Array.filter (\(Tuple b u) -> f $ Tuple { from: u, to: c.node } b) c.incomers
+                outgoers = Array.filter (\(Tuple b w) -> f $ Tuple { from: c.node, to: w } b) c.outgoers
+
+-- | Filter based on edge label property.
+filterEdgesOnLabel :: forall gr a b. DynGraph gr => (b -> Boolean) -> gr a b -> gr a b
+filterEdgesOnLabel f = filterEdges (\(Tuple _ b) -> f b)

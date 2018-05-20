@@ -8,8 +8,7 @@ import Prelude
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Foldable (foldM, foldl, foldr)
-import Data.Graph.Inductive.Construction (insEdges)
-import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Decomp, LEdge, Node, match)
+import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Decomp, LEdge, Node, insEdges, match)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
@@ -70,7 +69,7 @@ matchGr targetNode (Gr g) = case Map.lookup targetNode g of
     let c' = { incomers: toAdj (Map.delete targetNode c.incomers)
              , node: targetNode
              , label: c.label
-             , outgoers: toAdj (Map.delete targetNode c.outgoers)
+             , outgoers: toAdj c.outgoers
              }
         g' = g # Map.delete targetNode >>> clearSuccs c >>> clearPreds c
      in Just { context: c', remaining: Gr g' }
@@ -108,11 +107,13 @@ instance grMapDynGraph :: DynGraph Gr where
           addPred graph = foldM (addEdgeToVertexIfValid addOutgoer) graph c.incomers
           addEdgeToVertexIfValid :: forall a b. ((AddParams b) -> GrRep a b -> GrRep a b) -> GrRep a b -> Tuple b Node -> Either String (GrRep a b)
           addEdgeToVertexIfValid add accg (Tuple edgeLabel v) =
-            if Map.member v g
+            if c.node == v -- handle simple loops
+               then Right accg
+            else if Map.member v accg
               then Right (add { toAdd: {node: c.node, label: edgeLabel}
                               , addTo: v
                               } accg)
-              else Left ("merge: context refers to non-existent vertex " <> show v)
+            else Left ("merge: context refers to non-existent vertex " <> show v)
 
 type RmParams = { toRemove :: Node
                 , removeFrom :: Node
