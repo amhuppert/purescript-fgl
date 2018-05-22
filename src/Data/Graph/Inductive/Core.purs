@@ -85,22 +85,29 @@ module Data.Graph.Inductive.Core
   , subgraph
   , filterEdges
   , filterEdgesOnLabel
+  , nodes
+  , postorder
+  , postorderForest
+  , preorder
+  , preorderForest
   ) where
 
 import Prelude
 
+import Control.Comonad.Cofree as Cofree
 import Data.Array as Array
 import Data.Either (Either(..), fromRight)
 import Data.Either as Either
 import Data.Foldable (class Foldable, foldM, foldr)
 import Data.Function (on)
-import Data.List (List)
+import Data.List (List(..))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromJust, fromMaybe, isJust, maybe)
 import Data.NonEmpty (NonEmpty)
 import Data.NonEmpty as NonEmpty
 import Data.Set as Set
 import Data.Traversable (class Traversable)
+import Data.Tree (Tree)
 import Data.Tuple (Tuple(..), fst, snd)
 import Data.Tuple as Tuple
 import Partial.Unsafe (unsafePartial)
@@ -551,3 +558,28 @@ filterEdges f = fold cfilter empty
 -- | Filter based on edge label property.
 filterEdgesOnLabel :: forall gr a b. DynGraph gr => (b -> Boolean) -> gr a b -> gr a b
 filterEdgesOnLabel f = filterEdges (\(Tuple _ b) -> f b)
+
+
+-------------------------------------------------------
+--- TREE OPERATIONS -----------------------------------
+-------------------------------------------------------
+
+-- | Flatten a 'Tree', returning the elements in post-order.
+postorder :: forall a. Tree a -> List a
+postorder t =
+  postorderForest (Cofree.tail t) <> List.singleton (Cofree.head t)
+
+-- | Flatten multiple 'Tree's in post-order.
+postorderForest :: forall a. List (Tree a) -> List a
+postorderForest ts = List.concatMap postorder ts
+
+-- | Flatten a 'Tree', returning the elements in pre-order.  Equivalent to
+--'flatten' in 'Data.Tree'.
+preorder :: forall a. Tree a -> List a
+preorder t = squish t Nil
+  where squish t xs =
+          Cofree.head t `Cons` foldr squish xs (Cofree.tail t)
+
+-- | Flatten multiple 'Tree's in pre-order.
+preorderForest :: forall a. List (Tree a) -> List a
+preorderForest = List.concatMap preorder

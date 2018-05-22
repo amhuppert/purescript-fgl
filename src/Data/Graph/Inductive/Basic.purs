@@ -32,8 +32,6 @@ selectContexts :: forall gr a b. Graph gr => (Context a b -> Boolean) -> gr a b 
 selectContexts p = fold (\c cs -> if p c then cs `Array.snoc` c else cs) []
 
 
-
-
 -- some predicates and classifications
 --
 
