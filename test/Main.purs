@@ -8,11 +8,15 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Trans.Class (lift)
 import Data.Array as Array
-import Data.Either (Either(..))
-import Data.Graph.Inductive.Core (Context, Node, elem, empty, isEmpty, labEdges, labNodes, match, mkGraph, nodeRange, order)
+import Data.Either (Either(..), fromRight)
+import Data.Graph.Inductive.Core (Context, Node, elem, empty, equal, isEmpty, labEdges, labNodes, match, mkGraph, mkUnlabeledGraph, nodeRange, order)
 import Data.Graph.Inductive.Impl.Map (Gr)
+import Data.Graph.Inductive.Query.DFS (dfs, revDfs)
+import Data.Graph.Inductive.Query.TransitiveReduction (transitiveReduction)
+import Data.List as List
 import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Tuple (Tuple(..), fst, snd)
+import Partial.Unsafe (unsafePartial)
 import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Reporter (consoleReporter)
@@ -20,6 +24,9 @@ import Test.Spec.Runner (RunnerEffects, run)
 
 main :: Eff (RunnerEffects ()) Unit
 main = run [consoleReporter] do
+  dfsTests
+  transitiveReductionTests
+
   describe "Data.Map implementation of Graph and DynGraph classes" do
     describe "isEmpty" do
       it "should return true when given empty" do
@@ -208,3 +215,40 @@ hasIncomerFrom context from = (not <<< Array.null) $ Array.filter (snd >>> (_ ==
 
 hasOutgoerTo :: forall a b. Context a b -> Node -> Boolean
 hasOutgoerTo context to = (not <<< Array.null) $ Array.filter (snd >>> (_ == to)) context.outgoers
+
+transitiveReductionTests :: forall r. Spec r Unit
+transitiveReductionTests = describe "Data.Graph.Inductive.Query.TransitiveReduction" do
+    it "should reduce simple graph" do
+      let result = transitiveReduction simple
+          matchesExpected = result `equal` trOfSimple
+      matchesExpected `shouldEqual` true
+
+  where simple :: Gr Unit Unit
+        simple = unsafePartial $ fromRight $ mkUnlabeledGraph
+          [1,2,3]
+          [ { from: 1, to: 2 }
+          , { from: 2, to: 3 }
+          , { from: 1, to: 3 }
+          ]
+        trOfSimple = unsafePartial $ fromRight $ mkUnlabeledGraph
+          [1,2,3]
+          [ { from: 1, to: 2 }
+          , { from: 2, to: 3 }
+          ]
+
+dfsTests :: forall r. Spec r Unit
+dfsTests = describe "Data.Graph.Inductive.Query.DFS" do
+    it "dfs traverses 1->2->3->4 starting with 1 in correct order" do
+      let result = Array.fromFoldable $ dfs (List.singleton 1) lineSegmentsGraph
+      result `shouldEqual` [1,2,3,4]
+    it "revDfs traverses 1->2->3->4 starting with 4 in reverse order" do
+      let result = Array.fromFoldable $ revDfs (List.singleton 4) lineSegmentsGraph
+      result `shouldEqual` [4,3,2,1]
+
+  where lineSegmentsGraph :: Gr Unit Unit
+        lineSegmentsGraph = unsafePartial $ fromRight $ mkUnlabeledGraph
+              [1,2,3,4]
+              [ {from: 1, to: 2}
+              , {from: 2, to: 3}
+              , {from: 3, to: 4}
+              ]

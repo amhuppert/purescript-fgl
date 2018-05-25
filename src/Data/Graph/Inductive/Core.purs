@@ -18,6 +18,8 @@ module Data.Graph.Inductive.Core
   , mkGraph
   , order
   , nodeRange
+  , newNodes
+  , newNode
   , class DynGraph
   , merge
   , (&)
@@ -26,6 +28,7 @@ module Data.Graph.Inductive.Core
   , mapNodes
   , mapEdges
   , mapNodesEdges
+  , modifyNodeLabel
   , unsafeMerge
   , unlabelEdge
   , unlabelNode
@@ -42,6 +45,7 @@ module Data.Graph.Inductive.Core
   , insNode
   , insNodes
   , insEdges
+  , insEdge
   , delNodes
   , delNode
   , delEdge
@@ -86,10 +90,12 @@ module Data.Graph.Inductive.Core
   , filterEdges
   , filterEdgesOnLabel
   , nodes
+  , contexts
   , postorder
   , postorderForest
   , preorder
   , preorderForest
+  , edges
   ) where
 
 import Prelude
@@ -193,6 +199,12 @@ newNodes count graph
   | otherwise = let { max } = unsafePartial (fromJust (nodeRange graph))
                  in (max + 1) List... (max + count)
 
+newNode :: forall gr a b. Graph gr => gr a b -> Node
+newNode graph
+  | isEmpty graph = 0
+  | otherwise = let { max } = unsafePartial (fromJust (nodeRange graph))
+                 in max + 1
+
 numEdges :: forall gr a b. (Graph gr) => gr a b -> Int
 numEdges = labEdges >>> Array.length
 
@@ -231,6 +243,17 @@ mapNodesEdges nodeMapper edgeMapper =
                        }
               )
   where mapAdj = map (\(Tuple label n) -> Tuple (edgeMapper label) n)
+
+modifyNodeLabel :: forall gr a b. DynGraph gr => (a -> a) -> Node -> gr a b -> gr a b
+modifyNodeLabel f v g =
+  case match v g of
+    Nothing -> g
+    Just { context, remaining } ->
+      let c' = context { label = f context.label }
+       in c' `unsafeMerge` remaining
+
+contexts :: forall gr a b. Graph gr => gr a b -> Array (Context a b)
+contexts g = Array.mapMaybe (flip match g >=> (_.context >>> Just)) (nodes g)
 
 nodes :: forall gr a b. Graph gr => gr a b -> Array Node
 nodes = labNodes >>> map unlabelNode
@@ -349,7 +372,7 @@ delEdge e graph =
        in c' `unsafeMerge` remaining
   where nEq (Tuple _ o) = o /= e.to
 
-delEdges :: forall gr a b. DynGraph gr => Array Edge -> gr a b -> gr a b
+delEdges :: forall gr a b f. DynGraph gr => Foldable f => f Edge -> gr a b -> gr a b
 delEdges es g = foldr delEdge g es
 
 delLEdgeBy :: forall gr a b. DynGraph gr =>
