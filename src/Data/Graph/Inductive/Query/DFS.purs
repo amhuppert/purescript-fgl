@@ -61,7 +61,6 @@ import Prelude
 
 import Control.Comonad.Cofree as Cofree
 import Control.MonadPlus (guard)
-import Data.Either (fromRight)
 import Data.Graph.Inductive.Core (class Graph, Context, Node)
 import Data.Graph.Inductive.Core as Graph
 import Data.List (List(..))
@@ -286,7 +285,7 @@ reachable v g = Graph.preorderForest (dff (List.singleton v) g)
 -- | The condensation of the given graph, i.e., the graph of its
 -- strongly connected components.
 condensation :: forall gr a b. Graph gr => gr a b -> gr (List Node) Unit
-condensation gr = unsafePartial $ fromRight $ Graph.mkGraph vs es
+condensation gr = Graph.mkGraph vs es
   where
     sccs :: List (List Node)
     sccs = stronglyConnectedComponents gr

@@ -29,7 +29,6 @@ module Data.Graph.Inductive.Core
   , mapEdges
   , mapNodesEdges
   , modifyNodeLabel
-  , unsafeMerge
   , unlabelEdge
   , unlabelNode
   , labelEdge
@@ -102,9 +101,7 @@ import Prelude
 
 import Control.Comonad.Cofree as Cofree
 import Data.Array as Array
-import Data.Either (Either(..), fromRight)
-import Data.Either as Either
-import Data.Foldable (class Foldable, foldM, foldr)
+import Data.Foldable (class Foldable, foldl, foldr)
 import Data.Function (on)
 import Data.List (List(..))
 import Data.List as List
@@ -168,7 +165,7 @@ class Graph gr where
   match :: forall a b. Node -> gr a b -> Maybe (Decomp gr a b)
 
   -- | Create a Graph from the provided nodes and edges
-  mkGraph :: forall f a b. Traversable f => f (LNode a) -> f (LEdge b) -> Either String (gr a b)
+  mkGraph :: forall f a b. Traversable f => f (LNode a) -> f (LEdge b) -> gr a b
 
   -- | Get a list of all LNodes in the Graph
   labNodes :: forall a b. gr a b -> Array (LNode a)
@@ -189,7 +186,7 @@ class Graph gr where
 class Graph gr <= DynGraph gr where
   -- | Merge a context into an existing Graph.
   --   The edges should only refer to nodes that exist in the graph or to the node being merged.
-  merge :: forall a b. Context a b -> gr a b -> Either String (gr a b)
+  merge :: forall a b. Context a b -> gr a b -> gr a b
 
 infixr 8 merge as &
 
@@ -208,9 +205,6 @@ newNode graph
 numEdges :: forall gr a b. (Graph gr) => gr a b -> Int
 numEdges = labEdges >>> Array.length
 
-unsafeMerge :: forall gr a b. DynGraph gr => Context a b -> gr a b -> gr a b
-unsafeMerge c gr = unsafePartial (fromRight (c & gr))
-
 -- Graph folds and maps
 
 -- | Fold a function over the Graph by recursively calling matchAny
@@ -223,7 +217,7 @@ fold f accum graph
        in fold f accum' remaining
 
 mapContexts :: forall gr a b c d. DynGraph gr => (Context a b -> Context c d) -> gr a b -> gr c d
-mapContexts f = fold (\c gr -> unsafeMerge (f c) gr) empty
+mapContexts f = fold (\c gr -> merge (f c) gr) empty
 
 mapNodes :: forall gr a b a'. DynGraph gr => (a -> a') -> gr a b -> gr a' b
 mapNodes f = mapContexts (\c -> c { label = f c.label })
@@ -250,7 +244,7 @@ modifyNodeLabel f v g =
     Nothing -> g
     Just { context, remaining } ->
       let c' = context { label = f context.label }
-       in c' `unsafeMerge` remaining
+       in c' & remaining
 
 contexts :: forall gr a b. Graph gr => gr a b -> Array (Context a b)
 contexts g = Array.mapMaybe (flip match g >=> (_.context >>> Just)) (nodes g)
@@ -334,25 +328,24 @@ eqArr xs ys = Array.null (xs Array.\\ ys) && Array.null (ys Array.\\ xs)
 -- value in ys.
 
 insNode :: forall gr a b. DynGraph gr => LNode a -> gr a b -> gr a b
-insNode (Tuple node label) gr = unsafeMerge newContext gr
+insNode (Tuple node label) gr = merge newContext gr
   where newContext = { incomers: [], node, label, outgoers: [] }
 
 insNodes :: forall gr a b. DynGraph gr => Array (LNode a) -> gr a b -> gr a b
 insNodes ns g = foldr insNode g ns
 
-insEdge :: forall gr a b. DynGraph gr => LEdge b -> gr a b -> Either String (gr a b)
+insEdge :: forall gr a b. DynGraph gr => LEdge b -> gr a b -> gr a b
 insEdge (Tuple edge label) gr =
   maybe
-    (Left $ "insEdge: Cannot insert edge from non-existent vertex "
-          <> show edge.from)
+    gr
     (\c -> add c.context & c.remaining)
     source
 
   where source = match edge.from gr
         add c = c { outgoers = c.outgoers `Array.snoc` (Tuple label edge.to) }
 
-insEdges :: forall gr a b f. DynGraph gr => Foldable f => f (LEdge b) -> gr a b -> Either String (gr a b)
-insEdges es g = foldM (flip insEdge) g es
+insEdges :: forall gr a b f. DynGraph gr => Foldable f => f (LEdge b) -> gr a b -> gr a b
+insEdges es g = foldl (flip insEdge) g es
 
 delNodes :: forall gr a b. DynGraph gr => Array Node -> gr a b -> gr a b
 delNodes vs g = foldr rm g vs
@@ -369,7 +362,7 @@ delEdge e graph =
     Nothing -> graph
     Just { context: c, remaining } ->
       let c' = c { outgoers = Array.filter nEq c.outgoers }
-       in c' `unsafeMerge` remaining
+       in c' `merge` remaining
   where nEq (Tuple _ o) = o /= e.to
 
 delEdges :: forall gr a b f. DynGraph gr => Foldable f => f Edge -> gr a b -> gr a b
@@ -384,7 +377,7 @@ delLEdgeBy f (Tuple e label) g =
   case match e.from g of
     Nothing -> g
     Just { context: c, remaining } ->
-      c { outgoers = f (Tuple label e.to) c.outgoers } `unsafeMerge` remaining
+      c { outgoers = f (Tuple label e.to) c.outgoers } & remaining
 
 -- | Delete all edges equal to the one specified
 delLEdges :: forall gr a b. DynGraph gr => Eq b => LEdge b -> gr a b -> gr a b
@@ -395,13 +388,13 @@ delLEdges  = delLEdgeBy (Array.filter <<< ne)
 --   The list should be in the order such that earlier Contexts depend upon later ones
 buildGraph :: forall gr a b f. DynGraph gr => Foldable f
             => f (Context a b)
-            -> Either String (gr a b)
-buildGraph = foldM (flip merge) empty
+            -> gr a b
+buildGraph = foldr merge empty
 
 mkUnlabeledGraph :: forall t gr. Traversable t => Graph gr
                     => t Node
                     -> t Edge
-                    -> Either String (UGraph gr)
+                    -> UGraph gr
 mkUnlabeledGraph nodes edges =
   let le = map (_ `labelEdge` unit) edges
       ln = map (_ `labelNode` unit) nodes
@@ -537,9 +530,7 @@ filterMap :: forall gr a b c d. DynGraph gr
           -> gr a b
           -> gr c d
 filterMap f = fold foldFunc empty
-  where foldFunc c graph = fromMaybe graph do
-          c' <- f c
-          Either.hush (c' & graph)
+  where foldFunc c graph = maybe graph (_ & graph) (f c)
 
 filterNodes :: forall gr a b. DynGraph gr
             => (Node -> Boolean)
@@ -574,7 +565,7 @@ filterEdges f = fold cfilter empty
   where cfilter c g = c { incomers = incomers
                         , outgoers = outgoers
                         }
-                      `unsafeMerge` g
+                      & g
           where incomers = Array.filter (\(Tuple b u) -> f $ Tuple { from: u, to: c.node } b) c.incomers
                 outgoers = Array.filter (\(Tuple b w) -> f $ Tuple { from: c.node, to: w } b) c.outgoers
 

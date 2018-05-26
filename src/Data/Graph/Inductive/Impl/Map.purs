@@ -6,8 +6,7 @@ module Data.Graph.Inductive.Impl.Map
 import Prelude
 
 import Data.Array as Array
-import Data.Either (Either(..))
-import Data.Foldable (foldM, foldl, foldr)
+import Data.Foldable (foldl, foldr)
 import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Decomp, LEdge, Node, insEdges, match)
 import Data.Map (Map)
 import Data.Map as Map
@@ -101,19 +100,14 @@ instance grMapDynGraph :: DynGraph Gr where
                                  , label: c.label
                                  , outgoers: fromAdj c.outgoers
                                  } g
-          eitherG = Right g1 >>= addSucc >>= addPred
-       in Gr <$> eitherG
-    where addSucc graph = foldM (addEdgeToVertexIfValid addIncomer) graph c.outgoers
-          addPred graph = foldM (addEdgeToVertexIfValid addOutgoer) graph c.incomers
-          addEdgeToVertexIfValid :: forall a b. ((AddParams b) -> GrRep a b -> GrRep a b) -> GrRep a b -> Tuple b Node -> Either String (GrRep a b)
-          addEdgeToVertexIfValid add accg (Tuple edgeLabel v) =
-            if c.node == v -- handle simple loops
-               then Right accg
-            else if Map.member v accg
-              then Right (add { toAdd: {node: c.node, label: edgeLabel}
-                              , addTo: v
-                              } accg)
-            else Left ("merge: context refers to non-existent vertex " <> show v)
+          g2 = g1 # addSucc >>> addPred
+       in Gr g2
+    where addSucc graph = foldr (addEdge addIncomer) graph c.outgoers
+          addPred graph = foldr (addEdge addOutgoer) graph c.incomers
+          addEdge add (Tuple label node) =
+            add { toAdd: { label, node: c.node }
+                , addTo: node
+                }
 
 type RmParams = { toRemove :: Node
                 , removeFrom :: Node
