@@ -213,8 +213,7 @@ fold f accum graph
   | isEmpty graph = accum
   | otherwise =
       let { context, remaining } = unsafePartial (fromJust (matchAny graph))
-          accum' = f context accum
-       in fold f accum' remaining
+       in f context (fold f accum remaining)
 
 mapContexts :: forall gr a b c d. DynGraph gr => (Context a b -> Context c d) -> gr a b -> gr c d
 mapContexts f = fold (\c gr -> merge (f c) gr) empty
