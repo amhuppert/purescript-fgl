@@ -7,17 +7,16 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "^3.3.0",
-    "purescript-console": "^3.0.0",
-    "purescript-maybe": "^3.1.0",
-    "purescript-tuples": "^4.1.0",
-    "purescript-lists": "^4.12.0",
-    "purescript-arrays": "^4.4.0",
-    "purescript-sets": "^3.2.0",
-    "purescript-tree": "^1.3.2",
-    "purescript-free": "^4.3.0"
+    "purescript-prelude": "^4.0.1",
+    "purescript-console": "^4.1.0",
+    "purescript-maybe": "^4.0.0",
+    "purescript-tuples": "^5.0.0",
+    "purescript-lists": "^5.0.0",
+    "purescript-arrays": "^5.0.0",
+    "purescript-ordered-collections": "^1.0.0",
+    "purescript-tree": "dwhitney/purescript-tree#e6930590834dfb084c7a6cce591fd6543c52e80c"
   },
   "devDependencies": {
-    "purescript-psci-support": "^3.0.0"
+    "purescript-psci-support": "^4.0.0"
   }
 }

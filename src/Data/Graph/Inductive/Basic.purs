@@ -14,7 +14,7 @@ reverseEdges = mapContexts (\c -> c { incomers = c.outgoers, outgoers = c.income
 -- exists an edge from B to A.
 mkUndirected :: forall gr a b. Eq b => DynGraph gr => gr a b -> gr a b
 mkUndirected = mapContexts f
-  where f c = let ps = Array.nubBy adjEq (c.incomers <> c.outgoers)
+  where f c = let ps = Array.nubByEq adjEq (c.incomers <> c.outgoers)
                in c { incomers = ps, outgoers = ps }
         adjEq (Tuple l1 v1) (Tuple l2 v2) = v1 == v2 && l1 == l2
 

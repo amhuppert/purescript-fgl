@@ -101,13 +101,13 @@ import Prelude
 
 import Control.Comonad.Cofree as Cofree
 import Data.Array as Array
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Foldable (class Foldable, foldl, foldr)
 import Data.Function (on)
 import Data.List (List(..))
 import Data.List as List
 import Data.Maybe (Maybe(..), fromJust, fromMaybe, isJust, maybe)
-import Data.NonEmpty (NonEmpty)
-import Data.NonEmpty as NonEmpty
 import Data.Set as Set
 import Data.Traversable (class Traversable)
 import Data.Tree (Tree)
@@ -296,7 +296,7 @@ glabEdges = map (GEs <<< groupLabels)
             <<< labEdges
   where
     groupLabels les = labelEdge (unlabelEdge (head les)) (map snd les)
-    head = NonEmpty.head
+    head = NonEmptyArray.head
     eqEdge a b = a.from == b.from && a.to == b.to
     compareEdge a b =
       case compare a.from b.from of
@@ -312,14 +312,13 @@ equal g g' = slabNodes g == slabNodes g' && glabEdges g == glabEdges g'
 -- Newtype wrapper just to test for equality of multiple edges.  This
 -- is needed because without an Ord constraint on `b' it is not
 -- possible to guarantee a stable ordering on edge labels.
-newtype GroupEdges b = GEs (LEdge (NonEmpty Array b))
+newtype GroupEdges b = GEs (LEdge (NonEmptyArray b))
 
 instance eqGroupEdges :: (Eq b) => Eq (GroupEdges b) where
   eq (GEs (Tuple e1 ls1)) (GEs (Tuple e2 ls2)) =
       e1.from == e2.from
       && e1.to == e2.to
-      && eqArr (fromNE ls1) (fromNE ls2)
-    where fromNE = NonEmpty.fromNonEmpty (\head tail -> head Array.: tail)
+      && eqArr (NonEmptyArray.toArray ls1) (NonEmptyArray.toArray ls2)
 
 eqArr :: forall a. Eq a => Array a -> Array a -> Boolean
 eqArr xs ys = Array.null (xs Array.\\ ys) && Array.null (ys Array.\\ xs)

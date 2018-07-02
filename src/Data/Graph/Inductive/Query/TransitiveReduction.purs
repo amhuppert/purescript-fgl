@@ -11,7 +11,7 @@ import Data.List as List
 
 -- | <https://en.wikipedia.org/wiki/Transitive_reduction Transitive Reduction>
 -- O(|V|*|E|)
-transitiveReduction :: forall gr a b c. DynGraph gr => gr a b -> gr a b
+transitiveReduction :: forall gr a b. DynGraph gr => gr a b -> gr a b
 transitiveReduction graph = Graph.fold reduceV graph graph
 
   where reduceV :: Context a b -> gr a b -> gr a b
