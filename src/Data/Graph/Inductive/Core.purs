@@ -8,6 +8,7 @@ module Data.Graph.Inductive.Core
   , Context
   , Decomp
   , UGraph
+  , EdgeContext
   , class Graph
   , empty
   , isEmpty
@@ -95,6 +96,7 @@ module Data.Graph.Inductive.Core
   , preorder
   , preorderForest
   , edges
+  , edgeContext
   ) where
 
 import Prelude
@@ -141,6 +143,11 @@ type Decomp gr a b = { context :: (Context a b)
 
 type UGraph gr = gr Unit Unit
 
+type EdgeContext a b = { edgeLabels :: Array b
+                       , source :: LNode a
+                       , target :: LNode a
+                       }
+
 unlabelEdge :: forall b. LEdge b -> Edge
 unlabelEdge = fst
 
@@ -181,6 +188,8 @@ class Graph gr where
 
   -- | A list of all labeled edges in the Graph
   labEdges :: forall a b. gr a b -> Array (LEdge b)
+
+  edgeContext :: forall a b. Edge -> gr a b -> Maybe (EdgeContext a b)
 
 
 class Graph gr <= DynGraph gr where

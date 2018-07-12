@@ -7,7 +7,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Foldable (foldl, foldr)
-import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Decomp, LEdge, Node, insEdges, match)
+import Data.Graph.Inductive.Core (class DynGraph, class Graph, Adj, Decomp, Edge, LEdge, Node, EdgeContext, insEdges, match)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
@@ -57,6 +57,8 @@ instance grMapGraph :: Graph Gr where
           toLEdges (Tuple from c) = Array.concatMap (adjsToLEdge from) (Map.toUnfoldable c.outgoers)
           adjsToLEdge :: forall a b. Node -> Tuple Node (Array b) -> Array (LEdge b)
           adjsToLEdge from (Tuple to labels) = map (\l -> Tuple { from, to } l) labels
+
+  edgeContext = edgeContextImpl
 
 second :: forall a b c. (b -> c) -> Tuple a b -> Tuple a c
 second f (Tuple a b) = Tuple a (f b)
@@ -140,3 +142,13 @@ addOutgoer {toAdd,addTo} g = Map.update doAdd addTo g
         alter = case _ of
           Nothing -> Just [toAdd.label]
           Just es -> Just $ es `Array.snoc` toAdd.label
+
+edgeContextImpl :: forall a b. Edge -> Gr a b -> Maybe (EdgeContext a b)
+edgeContextImpl edge (Gr graphRep) = do
+  source <- Map.lookup edge.from graphRep
+  target <- Map.lookup edge.to graphRep
+  edgeLabels <- Map.lookup edge.to source.outgoers
+  Just { edgeLabels
+       , source: Tuple edge.from source.label
+       , target: Tuple edge.to target.label
+       }
