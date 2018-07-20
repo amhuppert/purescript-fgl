@@ -46,7 +46,7 @@ fold f accum graph
   | isEmpty graph = accum
   | otherwise =
       let Decomp { context, remaining } = unsafePartial (fromJust (matchAny graph))
-       in f context (fold f accum remaining)
+       in f context (fold f accum (Lazy.force remaining))
 
 mkUnlabeledGraph :: forall t gr k. Traversable t => Graph gr => Ord k
                     => t k
@@ -68,7 +68,7 @@ insEdge :: forall gr k a b. Ord k => DynGraph gr => LEdge k b -> gr k a b -> gr 
 insEdge (LEdge { edge: Edge edge, label }) gr =
   maybe
     gr
-    (\(Decomp { context, remaining }) -> add context & remaining)
+    (\(Decomp { context, remaining }) -> add context & Lazy.force remaining)
     (Graph.match edge.from gr)
 
   where add (Context c) =
@@ -83,7 +83,7 @@ delNodes :: forall gr k a b. Ord k => DynGraph gr => List k -> gr k a b -> gr k 
 delNodes vs g = foldr rm g vs
   where rm v currG = case Graph.match v currG of
           Nothing -> currG
-          Just (Decomp { context, remaining }) -> remaining
+          Just (Decomp { context, remaining }) -> Lazy.force remaining
 
 delNode :: forall gr k a b. Ord k => DynGraph gr =>k -> gr k a b -> gr k a b
 delNode v = delNodes $ List.singleton v
@@ -94,7 +94,7 @@ delEdge (Edge e) graph =
     Nothing -> graph
     Just (Decomp { context: Context c, remaining }) ->
       let c' = c { outgoers = List.filter nEq c.outgoers }
-       in Context c' `Graph.merge` remaining
+       in Context c' `Graph.merge` Lazy.force remaining
   where nEq (IncidentEdge { node }) = node /= e.to
 
 delEdges :: forall gr k a b f. Ord k => DynGraph gr => Foldable f => f (Edge k) -> gr k a b -> gr k a b

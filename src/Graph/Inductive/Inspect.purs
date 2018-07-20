@@ -69,6 +69,8 @@ degree g v =
 selectContexts :: forall gr k a b. Ord k => Graph gr => (Context k a b -> Boolean) -> gr k a b -> List (Context k a b)
 selectContexts p = fold (\c cs -> if p c then c `Cons` cs else cs) Nil
 
+nodeLabel :: forall gr k a b. Ord k => Graph gr => gr k a b -> k -> Maybe a
+nodeLabel g n = A.labelFromContext <$> context g n
 
 -------------------------------------------------------------------------------------
 -- Predicates -----------------------------------------------------------------------
@@ -90,6 +92,3 @@ hasEdge gr (Edge e) = e.to `List.elem` successors gr e.from
 -- | Checks if there is an edge between two nodes.
 hasNeighbor :: forall gr k a b. Ord k => Graph gr => gr k a b -> k -> k -> Boolean
 hasNeighbor gr v w = List.elem w $ neighbors gr v
-
-nodeLabel :: forall gr k a b. Ord k => Graph gr => gr k a b -> k -> Maybe a
-nodeLabel g n = A.labelFromContext <$> context g n

@@ -4,6 +4,14 @@ import Prelude
 
 import Data.Array as Array
 import Data.Function (on)
+import Data.Lazy as Lazy
+import Data.List (List(..))
+import Data.List as List
+import Data.List.Lazy as LL
+import Data.Maybe (Maybe(Just, Nothing), isJust)
+import Effect (Effect)
+import Graph.Inductive.Algorithms.DFS (dfs, revDfs)
+import Graph.Inductive.Algorithms.TransitiveReduction (transitiveReduction)
 import Graph.Inductive.Class (empty, isEmpty, labEdges, labNodes, match, maxNode, minNode, mkGraph, order)
 import Graph.Inductive.Class as Graph
 import Graph.Inductive.Core (labelEdge, labelNode, mkUnlabeledGraph)
@@ -11,16 +19,9 @@ import Graph.Inductive.Core as Core
 import Graph.Inductive.Equality (equal)
 import Graph.Inductive.Impl (Gr)
 import Graph.Inductive.Inspect (elem)
-import Graph.Inductive.Algorithms.DFS (dfs, revDfs)
-import Graph.Inductive.Algorithms.TransitiveReduction (transitiveReduction)
 import Graph.Inductive.Types (Context(..), Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
 import Graph.Inductive.Types.Accessors as A
-import Data.List (List(..))
-import Data.List as List
-import Data.List.Lazy as LL
-import Data.Maybe (Maybe(Just, Nothing), isJust)
-import Effect (Effect)
-import Test.Spec (Spec, describe, it, pending)
+import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner (run)
@@ -60,7 +61,7 @@ main = run [consoleReporter] $ do
                         ] :: Gr Int String Unit
         case match 1 g of
           Just (Decomp {remaining}) -> do
-            order remaining `shouldEqual` 1
+            order (Lazy.force remaining) `shouldEqual` 1
           Nothing -> fail $ "match returned Nothing"
       it "remaining graph should not contain the matched node" do
         let g = mkGraph [ labelNode 1 "A"
@@ -72,7 +73,7 @@ main = run [consoleReporter] $ do
                         ] :: Gr Int String Unit
         case match 1 g of
           Just (Decomp {remaining}) -> do
-            elem 1 remaining `shouldEqual` false
+            elem 1 (Lazy.force remaining) `shouldEqual` false
           Nothing -> fail $ "match returned Nothing"
       it "should remove the incoming edge of each successor" do
         let g = mkGraph [ labelNode 1 "A"
@@ -85,7 +86,7 @@ main = run [consoleReporter] $ do
                         ] :: Gr Int String Unit
         case match 1 g of
           Just (Decomp {remaining}) ->
-            case match 2 remaining of
+            case match 2 (Lazy.force remaining) of
               Just (Decomp {context}) -> do
                 (context `hasIncomerFrom` 1) `shouldEqual` false
               Nothing -> fail $ "match 2 returned Nothing"
@@ -101,7 +102,7 @@ main = run [consoleReporter] $ do
                         ] :: Gr Int String Unit
         case match 1 g of
           Just (Decomp {remaining}) ->
-            case match 3 remaining of
+            case match 3 (Lazy.force remaining) of
               Just (Decomp {context}) -> do
                 (context `hasOutgoerTo` 1) `shouldEqual` false
               Nothing -> fail $ "match 3 returned Nothing"

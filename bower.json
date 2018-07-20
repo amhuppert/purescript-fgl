@@ -9,6 +9,7 @@
   "dependencies": {
     "purescript-prelude": "^4.0.1",
     "purescript-console": "^4.1.0",
+    "purescript-lazy": "^4.0.0",
     "purescript-maybe": "^4.0.0",
     "purescript-tuples": "^5.0.0",
     "purescript-lists": "^5.0.0",

@@ -3,19 +3,19 @@ module Graph.Inductive.Impl
   ( Gr
   ) where
 
-import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, match)
-import Graph.Inductive.Core (insEdges)
-import Graph.Inductive.Types (Context(..), Edge(..), EdgeContext(..), GraphDecomposition(..), IncidentEdge(..), IncidentEdges, LEdge(..), LNode(..))
 import Prelude
 
 import Data.Foldable (foldl, foldr)
+import Data.Lazy as Lazy
 import Data.List (List(..))
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-
 import Data.Tuple (Tuple(..))
+import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, match)
+import Graph.Inductive.Core (insEdges)
+import Graph.Inductive.Types (Context(..), Edge(..), EdgeContext(..), GraphDecomposition(..), IncidentEdge(..), IncidentEdges, LEdge(..), LNode(..))
 
 type AdjMap k b = Map k (List b)
 
@@ -80,8 +80,12 @@ matchGr targetNode (Gr g) = case Map.lookup targetNode g of
              , label: c.label
              , outgoers: toAdj c.outgoers
              }
-        g' = g # Map.delete targetNode >>> clearSuccs c >>> clearPreds c
-     in Just $ Decomp { context: Context c', remaining: Gr g' }
+        g' = Lazy.defer \_ ->
+               g # Map.delete targetNode
+               >>> clearSuccs c
+               >>> clearPreds c
+               >>> Gr
+     in Just $ Decomp { context: Context c', remaining: g' }
 
   where clearSuccs c gr = foldr rm gr (Map.keys c.outgoers)
           where rm removeFrom = rmIncomer {removeFrom, toRemove: targetNode}

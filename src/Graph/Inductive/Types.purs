@@ -3,7 +3,7 @@ module Graph.Inductive.Types where
 
 import Prelude
 
-import Data.Foldable (class Foldable)
+import Data.Lazy (Lazy)
 import Data.List (List)
 import Data.Newtype (class Newtype)
 
@@ -70,7 +70,7 @@ derive instance newtypeGraphDecomp :: Newtype (GraphDecomposition gr k a b) _
 derive newtype instance showGraphDecomp :: (Show k, Show a, Show b, Show (gr k a b)) => Show (GraphDecomposition gr k a b)
 
 type DecompRec gr k a b = { context :: (Context k a b)
-                          , remaining :: gr k a b
+                          , remaining :: Lazy (gr k a b)
                           }
 
 type UGraph gr k = gr k Unit Unit

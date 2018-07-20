@@ -61,15 +61,10 @@ import Prelude
 
 import Control.Comonad.Cofree as Cofree
 import Control.MonadPlus (guard)
-import Graph.Inductive.Class (class Graph)
-import Graph.Inductive.Class (isEmpty, match, mkGraph) as Graph
-import Graph.Inductive.Inspect (hasEdge, nodes) as Graph
-import Graph.Inductive.Inspect.Context as Context
-import Graph.Inductive.Tree (postorderForest, preorder, preorderForest) as Tree
-import Graph.Inductive.Types (Context, Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
-import Graph.Inductive.Types.Accessors as A
+import Data.Lazy as Lazy
 import Data.List (List(..))
 import Data.List as List
+import Data.List.Lazy as LL
 import Data.List.Lazy as LazyList
 import Data.Map (Map)
 import Data.Map as Map
@@ -78,6 +73,13 @@ import Data.Tree (Tree)
 import Data.Tree (mkTree) as Tree
 import Data.Tuple (Tuple(..), fst)
 import Data.Tuple as Tuple
+import Graph.Inductive.Class (class Graph)
+import Graph.Inductive.Class (isEmpty, match, mkGraph) as Graph
+import Graph.Inductive.Inspect (hasEdge, nodes) as Graph
+import Graph.Inductive.Inspect.Context as Context
+import Graph.Inductive.Tree (postorderForest, preorder, preorderForest) as Tree
+import Graph.Inductive.Types (Context, Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
+import Graph.Inductive.Types.Accessors as A
 import Partial.Unsafe (unsafePartial)
 
 type CFun k a b c = Context k a b -> c
@@ -89,36 +91,42 @@ xdfsWith :: forall gr k a b c. Graph gr => Ord k
          -> CFun k a b c -- ^ Mapping from a context of a node to a result value.
          -> List k  -- ^ Nodes to be visited
          -> gr k a b
-         -> List c
-xdfsWith _ _ Nil _ = Nil
-xdfsWith _ _ _ g | Graph.isEmpty g = Nil
-xdfsWith getVisitNext f (Cons v vs) g =
-  case Graph.match v g of
-    Nothing -> go vs g
-    Just (Decomp {context, remaining})-> f context `Cons` go (getVisitNext context <> vs) remaining
+         -> LL.List c
+xdfsWith getVisitNext f visit graph = go visit graph
+  where go :: List k -> gr k a b -> LL.List c
+        go Nil _ = LL.nil
+        go _ g | Graph.isEmpty g = LL.nil
+        go (Cons v vs) g =
+          case Graph.match v g of
+            Nothing -> go vs g
+            Just (Decomp {context, remaining}) ->
+              let curr = f context
+                  rest = LL.List $ Lazy.defer $ \_ -> LL.step (go (getVisitNext context <> vs) (Lazy.force remaining))
+              in LL.cons curr rest
 
-  where go = xdfsWith getVisitNext f
+  -- where go :: List k -> gr k a b -> LL.Step c
+  --       go = xdfsWith getVisitNext f
 
 dfsWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> List c
+         -> LL.List c
 dfsWith = xdfsWith Context.successors
 
 dfsAllWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
          -> gr k a b
-         -> List c
+         -> LL.List c
 dfsAllWith f = withAllNodes (dfsWith f)
 
 dfs :: forall gr k a b. Ord k => Graph gr
         => List k
         -> gr k a b
-        -> List k
+        -> LL.List k
 dfs = dfsWith A.nodeFromContext
 
-dfsAll :: forall gr k a b. Ord k => Graph gr => gr k a b -> List k
+dfsAll :: forall gr k a b. Ord k => Graph gr => gr k a b -> LL.List k
 dfsAll = withAllNodes dfs
 
 
@@ -132,48 +140,48 @@ undirectedDfsWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> List c
+         -> LL.List c
 undirectedDfsWith = xdfsWith Context.neighbors
 
 undirectedDfsAllWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> gr k a b
-         -> List c
+         -> LL.List c
 undirectedDfsAllWith f = withAllNodes (undirectedDfsWith f)
 
 undirectedDfs :: forall gr k a b. Graph gr => Ord k
         => List k
         -> gr k a b
-        -> List k
+        -> LL.List k
 undirectedDfs = undirectedDfsWith A.nodeFromContext
 
 undirectedDfsAll :: forall gr k a b. Graph gr => Ord k
         => gr k a b
-        -> List k
+        -> LL.List k
 undirectedDfsAll = withAllNodes undirectedDfs
 
 revDfsWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> List c
+         -> LL.List c
 revDfsWith = xdfsWith Context.predecessors
 
 revDfsAllWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> gr k a b
-         -> List c
+         -> LL.List c
 revDfsAllWith f = withAllNodes (undirectedDfsWith f)
 
 revDfs :: forall gr k a b. Graph gr => Ord k
         => List k
         -> gr k a b
-        -> List k
+        -> LL.List k
 revDfs = undirectedDfsWith A.nodeFromContext
 
 revDfsAll :: forall gr k a b. Graph gr => Ord k
         => gr k a b
-        -> List k
+        -> LL.List k
 revDfsAll = withAllNodes undirectedDfs
 
 -- | Most general DFS algorithm to create a forest of results, otherwise very
@@ -190,7 +198,7 @@ xdfWith _ _ _ g | Graph.isEmpty g = Tuple Nil g
 xdfWith d f (Cons v vs) g = case Graph.match v g of
   Nothing -> xdfWith d f vs g
   Just (Decomp { context, remaining })->
-    let Tuple ts g2 = xdfWith d f (d context) remaining
+    let Tuple ts g2 = xdfWith d f (d context) (Lazy.force remaining)
         Tuple ts' g3 = xdfWith d f vs g2
      in Tuple (Tree.mkTree (f context) ts `Cons` ts') g3
 

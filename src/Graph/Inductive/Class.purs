@@ -36,7 +36,6 @@ class Graph gr where
   -- | The number of nodes in a Graph
   order :: forall k a b. gr k a b -> Int
 
-  -- TODO remove?
   edgeContext :: forall k a b. Ord k => Edge k -> gr k a b -> Maybe (EdgeContext k a b)
 
 
