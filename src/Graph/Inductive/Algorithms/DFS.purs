@@ -101,11 +101,9 @@ xdfsWith getVisitNext f visit graph = go visit graph
             Nothing -> go vs g
             Just (Decomp {context, remaining}) ->
               let curr = f context
-                  rest = LL.List $ Lazy.defer $ \_ -> LL.step (go (getVisitNext context <> vs) (Lazy.force remaining))
+                  rest = LL.List $
+                         Lazy.defer $ \_ -> LL.step (go (getVisitNext context <> vs) (Lazy.force remaining))
               in LL.cons curr rest
-
-  -- where go :: List k -> gr k a b -> LL.Step c
-  --       go = xdfsWith getVisitNext f
 
 dfsWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
