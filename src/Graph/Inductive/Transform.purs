@@ -1,7 +1,6 @@
 module Graph.Inductive.Transform where
 
 import Prelude
-
 import Data.Lazy as Lazy
 import Data.List as List
 import Data.Maybe (Maybe(..))
@@ -11,9 +10,12 @@ import Graph.Inductive.Class as Graph
 import Graph.Inductive.Core as Core
 import Graph.Inductive.Types (Context(..), GraphDecomposition(..), IncidentEdge(..), UGraph)
 
-
 mapContexts :: forall gr k a b c d. Ord k => DynGraph gr => (Context k a b -> Context k c d) -> gr k a b -> gr k c d
 mapContexts f = Core.fold (\c gr -> Graph.merge (f c) gr) Graph.empty
+
+mapNodes :: forall gr k a b a'. Ord k => DynGraph gr => (a -> a') -> gr k a b -> gr k a' b
+mapNodes f = Graph.mapNodesWithKey f'
+  where f' _ label = f label
 
 mapEdges :: forall gr k a b b'. Ord k => DynGraph gr => (b -> b') -> gr k a b -> gr k a b'
 mapEdges f = mapContexts (over Context updateContextRec)

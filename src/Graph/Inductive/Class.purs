@@ -30,9 +30,6 @@ class Graph gr where
   -- | A list of all labeled edges in the Graph
   labEdges :: forall k a b. gr k a b -> List (LEdge k b)
 
-  -- | Transform the labels for all nodes in the Graph.
-  mapNodes :: forall k a b a'. (a -> a') -> gr k a b -> gr k a' b
-
   -- | The number of nodes in a Graph
   order :: forall k a b. gr k a b -> Int
 
@@ -49,5 +46,9 @@ class Graph gr <= DynGraph gr where
   -- | Merge a context into an existing Graph.
   -- | The incident edges within the context **must** only refer to nodes that already exist in the graph or to the node being merged.
   merge :: forall k a b. Ord k => Context k a b -> gr k a b -> gr k a b
+
+  -- | Transform the labels for all nodes in the Graph.
+  mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> gr k a b -> gr k a' b
+
 
 infixr 8 merge as &

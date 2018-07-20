@@ -13,6 +13,7 @@ derive newtype instance showEdge :: Show k => Show (Edge k)
   --   "Edge { from: \"" <> show from <> "\", to: \"" <> show to <> "\" }"
 derive instance eqEdge :: Eq k => Eq (Edge k)
 derive instance newtypeEdge :: Newtype (Edge k) _
+derive instance ordEdge :: Ord k => Ord (Edge k)
 
 type EdgeRec k = { from :: k
                  , to   :: k

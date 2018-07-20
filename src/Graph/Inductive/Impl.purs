@@ -6,6 +6,7 @@ module Graph.Inductive.Impl
 import Prelude
 
 import Data.Foldable (foldl, foldr)
+import Data.FunctorWithIndex (mapWithIndex)
 import Data.Lazy as Lazy
 import Data.List (List(..))
 import Data.List as List
@@ -67,9 +68,6 @@ instance grMapGraph :: Graph Gr where
 
   edgeContext = edgeContextImpl
 
-  mapNodes f (Gr g) = Gr $ map f' g
-    where f' (Context' c) = Context' (c { label = f c.label })
-
 -- | O[log(n) + d*log(n)] where d is the degree of the matched node.
 matchGr :: forall k a b. Ord k => k -> Gr k a b -> Maybe (GraphDecomposition Gr k a b)
 matchGr targetNode (Gr g) = case Map.lookup targetNode g of
@@ -124,6 +122,11 @@ instance grMapDynGraph :: DynGraph Gr where
             add { toAdd: { label, node: c.node }
                 , addTo: node
                 }
+
+  mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> Gr k a b -> Gr k a' b
+  mapNodesWithKey f (Gr g) = Gr $ mapWithIndex f' g
+    where f' k (Context' c) = Context' (c { label = f k c.label })
+
 
 type RmParams k = { toRemove :: k
                   , removeFrom :: k
