@@ -1,7 +1,7 @@
 # purescript-fgl
-PureScript port of Martin Erwig's Functional Graph Library
+Graph library heavily inspired by Martin Erwig's Functional Graph Library.
 
-See the [documentation on Hackage](https://hackage.haskell.org/package/fgl "fgl: Martin Erwig's Functional Graph Library") for information about the original library.
+See the [documentation on Hackage](https://hackage.haskell.org/package/fgl "fgl: Martin Erwig's Functional Graph Library") for information about the original fgl.
 
 ## Status
 - [x] Basic graph operations/inspections

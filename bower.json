@@ -14,9 +14,11 @@
     "purescript-lists": "^5.0.0",
     "purescript-arrays": "^5.0.0",
     "purescript-ordered-collections": "^1.0.0",
+    "purescript-enums": "^4.0.0",
     "purescript-tree": "dwhitney/purescript-tree#e6930590834dfb084c7a6cce591fd6543c52e80c"
   },
   "devDependencies": {
-    "purescript-psci-support": "^4.0.0"
+    "purescript-psci-support": "^4.0.0",
+    "purescript-spec": "^3.0.0"
   }
 }
