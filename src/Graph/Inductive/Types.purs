@@ -9,8 +9,6 @@ import Data.Newtype (class Newtype)
 
 newtype Edge k = Edge (EdgeRec k)
 derive newtype instance showEdge :: Show k => Show (Edge k)
-  -- show (Edge { from, to }) =
-  --   "Edge { from: \"" <> show from <> "\", to: \"" <> show to <> "\" }"
 derive instance eqEdge :: Eq k => Eq (Edge k)
 derive instance newtypeEdge :: Newtype (Edge k) _
 derive instance ordEdge :: Ord k => Ord (Edge k)
