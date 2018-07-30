@@ -8,6 +8,7 @@ import Data.Lazy as Lazy
 import Data.List (List(..))
 import Data.List as List
 import Data.List.Lazy as LL
+import Data.List.Lazy as LazyList
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Effect (Effect)
 import Graph.Inductive.Algorithms.DFS (dfs, revDfs)
@@ -19,9 +20,10 @@ import Graph.Inductive.Core as Core
 import Graph.Inductive.Equality (equal)
 import Graph.Inductive.Impl (Gr)
 import Graph.Inductive.Inspect (elem)
+import Graph.Inductive.Tree as Tree
 import Graph.Inductive.Types (Context(..), Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
 import Graph.Inductive.Types.Accessors as A
-import Test.Spec (Spec, describe, it)
+import Test.Spec (Spec, describe, it, pending)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner (run)
@@ -31,6 +33,7 @@ main = run [consoleReporter] $ do
   dfsTests
   transitiveReductionTests
   coreTests
+  treeTests
   describe "Data.Map implementation of Graph and DynGraph classes" do
     describe "isEmpty" do
       it "should return true when given empty" do
@@ -214,10 +217,10 @@ transitiveReductionTests = describe "Graph.Inductive.Algorithms.TransitiveReduct
 dfsTests :: Spec Unit
 dfsTests = describe "Graph.Inductive.Algorithms.DFS" do
     it "dfs traverses 1->2->3->4 starting with 1 in correct order" do
-      let result = Array.fromFoldable $ dfs (List.singleton 1) lineSegmentsGraph
+      let result = Array.fromFoldable $ dfs (LazyList.singleton 1) lineSegmentsGraph
       result `shouldEqual` [1,2,3,4]
     it "revDfs traverses 1->2->3->4 starting with 4 in reverse order" do
-      let result = Array.fromFoldable $ revDfs (List.singleton 4) lineSegmentsGraph
+      let result = Array.fromFoldable $ revDfs (LazyList.singleton 4) lineSegmentsGraph
       result `shouldEqual` [4,3,2,1]
 
   where lineSegmentsGraph :: Gr Int Unit Unit
@@ -242,3 +245,25 @@ coreTests = describe "Graph.Inductive.Core" $ do
           count = 5
           res = Core.newNodes count graph
       LL.length (LL.nub res) `shouldEqual` count
+
+treeTests :: Spec Unit
+treeTests =
+  describe "Graph.Inductive.Tree" do
+    it "preorder" do
+      let results = Tree.preorder tree
+      results `shouldEqual` LazyList.fromFoldable ['A', 'B', 'D', 'E', 'C', 'F', 'G']
+    it "postorder" do
+      let results = Tree.postorder tree
+      results `shouldEqual` LazyList.fromFoldable ['D', 'E', 'B', 'F', 'G', 'C', 'A']
+
+  where tree =
+          Tree.mkTree 'A'
+            [ Tree.mkTree 'B'
+                [ Tree.mkTree 'D' []
+                , Tree.mkTree 'E' []
+                ]
+            , Tree.mkTree 'C'
+                [ Tree.mkTree 'F' []
+                , Tree.mkTree 'G' []
+                ]
+            ]

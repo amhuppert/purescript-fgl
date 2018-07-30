@@ -4,12 +4,12 @@ module Graph.Inductive.Algorithms.TransitiveReduction
 
 import Prelude
 
+import Data.List.Lazy as List
+import Graph.Inductive.Algorithms.DFS as DFS
 import Graph.Inductive.Class (class DynGraph)
 import Graph.Inductive.Core as Graph
 import Graph.Inductive.Inspect.Context as Context
-import Graph.Inductive.Algorithms.DFS as DFS
 import Graph.Inductive.Types (Context(..), Edge(..))
-import Data.List as List
 
 -- | <https://en.wikipedia.org/wiki/Transitive_reduction Transitive Reduction>
 -- |
@@ -22,7 +22,7 @@ transitiveReduction graph = Graph.fold reduceV graph graph
           let toDel =
                 List.concatMap
                   (reachableFromSucc >>> map (mkEdgeFrom curr.node))
-                  (Context.successors (Context curr))
+                  (List.fromFoldable $ Context.successors (Context curr))
            in Graph.delEdges toDel g
 
           where reachableFromSucc s = List.filter (_ /= s) $ DFS.reachable s graph

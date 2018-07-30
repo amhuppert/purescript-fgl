@@ -59,25 +59,21 @@ module Graph.Inductive.Algorithms.DFS
 
 import Prelude
 
-import Control.Comonad.Cofree as Cofree
 import Control.MonadPlus (guard)
 import Data.Lazy as Lazy
-import Data.List (List(..))
-import Data.List as List
-import Data.List.Lazy as LL
-import Data.List.Lazy as LazyList
+import Data.List.Lazy (List, Step(..))
+import Data.List.Lazy as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromJust)
-import Data.Tree (Tree)
-import Data.Tree (mkTree) as Tree
 import Data.Tuple (Tuple(..), fst)
 import Data.Tuple as Tuple
 import Graph.Inductive.Class (class Graph)
 import Graph.Inductive.Class (isEmpty, match, mkGraph) as Graph
 import Graph.Inductive.Inspect (hasEdge, nodes) as Graph
 import Graph.Inductive.Inspect.Context as Context
-import Graph.Inductive.Tree (postorderForest, preorder, preorderForest) as Tree
+import Graph.Inductive.Tree (Tree)
+import Graph.Inductive.Tree as Tree
 import Graph.Inductive.Types (Context, Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
 import Graph.Inductive.Types.Accessors as A
 import Partial.Unsafe (unsafePartial)
@@ -91,40 +87,42 @@ xdfsWith :: forall gr k a b c. Graph gr => Ord k
          -> CFun k a b c -- ^ Mapping from a context of a node to a result value.
          -> List k  -- ^ Nodes to be visited
          -> gr k a b
-         -> LL.List c
+         -> List c
 xdfsWith getVisitNext f visit graph = go visit graph
-  where go :: List k -> gr k a b -> LL.List c
-        go Nil _ = LL.nil
-        go _ g | Graph.isEmpty g = LL.nil
-        go (Cons v vs) g =
-          case Graph.match v g of
-            Nothing -> go vs g
-            Just (Decomp {context, remaining}) ->
-              let curr = f context
-                  rest = LL.List $
-                         Lazy.defer $ \_ -> LL.step (go (getVisitNext context <> vs) (Lazy.force remaining))
-              in LL.cons curr rest
+  where go :: List k -> gr k a b -> List c
+        go _ g | Graph.isEmpty g = List.nil
+        go nodes g =
+          case List.step nodes of
+            Nil -> List.nil
+            Cons v vs -> 
+              case Graph.match v g of
+                Nothing -> go vs g
+                Just (Decomp {context, remaining}) ->
+                  let curr = f context
+                      next = getVisitNext context <> vs
+                      rest = go next (Lazy.force remaining)
+                  in List.cons curr rest
 
 dfsWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> LL.List c
-dfsWith = xdfsWith Context.successors
+         -> List c
+dfsWith = xdfsWith (Context.successors >>> List.fromFoldable)
 
 dfsAllWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
          -> gr k a b
-         -> LL.List c
+         -> List c
 dfsAllWith f = withAllNodes (dfsWith f)
 
 dfs :: forall gr k a b. Ord k => Graph gr
         => List k
         -> gr k a b
-        -> LL.List k
+        -> List k
 dfs = dfsWith A.nodeFromContext
 
-dfsAll :: forall gr k a b. Ord k => Graph gr => gr k a b -> LL.List k
+dfsAll :: forall gr k a b. Ord k => Graph gr => gr k a b -> List k
 dfsAll = withAllNodes dfs
 
 
@@ -132,54 +130,54 @@ withAllNodes :: forall a b c gr k. Graph gr =>
                 (List k -> gr k a b -> c)
              -> gr k a b
              -> c
-withAllNodes f g = f (Graph.nodes g) g
+withAllNodes f g = f (List.fromFoldable $ Graph.nodes g) g
 
 undirectedDfsWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> LL.List c
-undirectedDfsWith = xdfsWith Context.neighbors
+         -> List c
+undirectedDfsWith = xdfsWith (Context.neighbors >>> List.fromFoldable)
 
 undirectedDfsAllWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> gr k a b
-         -> LL.List c
+         -> List c
 undirectedDfsAllWith f = withAllNodes (undirectedDfsWith f)
 
 undirectedDfs :: forall gr k a b. Graph gr => Ord k
         => List k
         -> gr k a b
-        -> LL.List k
+        -> List k
 undirectedDfs = undirectedDfsWith A.nodeFromContext
 
 undirectedDfsAll :: forall gr k a b. Graph gr => Ord k
         => gr k a b
-        -> LL.List k
+        -> List k
 undirectedDfsAll = withAllNodes undirectedDfs
 
 revDfsWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> List k
          -> gr k a b
-         -> LL.List c
-revDfsWith = xdfsWith Context.predecessors
+         -> List c
+revDfsWith = xdfsWith (Context.predecessors >>> List.fromFoldable)
 
 revDfsAllWith  :: forall gr k a b c. Graph gr => Ord k
          => CFun k a b c
          -> gr k a b
-         -> LL.List c
+         -> List c
 revDfsAllWith f = withAllNodes (undirectedDfsWith f)
 
 revDfs :: forall gr k a b. Graph gr => Ord k
         => List k
         -> gr k a b
-        -> LL.List k
+        -> List k
 revDfs = undirectedDfsWith A.nodeFromContext
 
 revDfsAll :: forall gr k a b. Graph gr => Ord k
         => gr k a b
-        -> LL.List k
+        -> List k
 revDfsAll = withAllNodes undirectedDfs
 
 -- | Most general DFS algorithm to create a forest of results, otherwise very
@@ -191,14 +189,18 @@ xdfWith :: forall gr k a b c. Graph gr => Ord k
     -> List k
     -> gr k a b
     -> Tuple (List (Tree c)) (gr k a b)
-xdfWith _ _ Nil g = Tuple Nil g
-xdfWith _ _ _ g | Graph.isEmpty g = Tuple Nil g
-xdfWith d f (Cons v vs) g = case Graph.match v g of
-  Nothing -> xdfWith d f vs g
-  Just (Decomp { context, remaining })->
-    let Tuple ts g2 = xdfWith d f (d context) (Lazy.force remaining)
-        Tuple ts' g3 = xdfWith d f vs g2
-     in Tuple (Tree.mkTree (f context) ts `Cons` ts') g3
+xdfWith _ _ _ g | Graph.isEmpty g = Tuple List.nil g
+xdfWith getNext f toVisit g =
+  case List.step toVisit of
+    Nil -> Tuple List.nil g
+    Cons v vs ->
+      case Graph.match v g of
+      Nothing -> xdfWith getNext f vs g
+      Just (Decomp { context, remaining })->
+        let next = getNext context
+            Tuple ts g2 = xdfWith getNext f next (Lazy.force remaining)
+            Tuple ts' g3 = xdfWith getNext f vs g2
+        in Tuple (Tree.mkTree (f context) ts `List.cons` ts') g3
 
 -- | Discard the graph part of the result of 'xdfWith'
 xdffWith :: forall gr k a b c. Graph gr => Ord k
@@ -214,7 +216,7 @@ dff :: forall gr k a b. Ord k => Graph gr => List k -> gr k a b -> List (Tree k)
 dff = dffWith A.nodeFromContext
 
 dffWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> List k -> gr k a b -> List (Tree c)
-dffWith = xdffWith Context.successors
+dffWith = xdffWith (Context.successors >>> List.fromFoldable)
 
 dffAllWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> gr k a b -> List (Tree c)
 dffAllWith f = withAllNodes (dffWith f)
@@ -227,7 +229,7 @@ undirectedDff :: forall gr k a b. Ord k => Graph gr => List k -> gr k a b -> Lis
 undirectedDff = undirectedDffWith A.nodeFromContext
 
 undirectedDffWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> List k -> gr k a b -> List (Tree c)
-undirectedDffWith = xdffWith Context.neighbors
+undirectedDffWith = xdffWith (Context.neighbors >>> List.fromFoldable)
 
 undirectedDffAllWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> gr k a b -> List (Tree c)
 undirectedDffAllWith f = withAllNodes (undirectedDffWith f)
@@ -240,7 +242,7 @@ revDff :: forall gr k a b. Ord k => Graph gr => List k -> gr k a b -> List (Tree
 revDff = revDffWith A.nodeFromContext
 
 revDffWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> List k -> gr k a b -> List (Tree c)
-revDffWith = xdffWith Context.predecessors
+revDffWith = xdffWith (Context.predecessors >>> List.fromFoldable)
 
 revDffAllWith :: forall gr k a b c. Ord k => Graph gr => CFun k a b c -> gr k a b -> List (Tree c)
 revDffAllWith f = withAllNodes (revDffWith f)
@@ -266,7 +268,7 @@ isConnected = (_ == 1) <<< numConnectedComponents
 
 -- | Flatten a 'Tree' in reverse order
 postflatten :: forall a. Tree a -> List a
-postflatten t = postflattenForest (Cofree.tail t) <> List.singleton (Cofree.head t)
+postflatten t = postflattenForest (Tree.subForest t) <> List.singleton (Tree.root t)
 
 -- | Flatten a forest in reverse order
 postflattenForest :: forall a. List (Tree a) -> List a
@@ -300,7 +302,7 @@ condensation gr = Graph.mkGraph vs' es
 
     vs :: List (Tuple Int (List k))
     vs = List.fromFoldable $
-           LazyList.zip (LazyList.iterate (_ + 1) 1) (LazyList.fromFoldable sccs)
+           List.zip (List.iterate (_ + 1) 1) (List.fromFoldable sccs)
 
     vs' = map (\(Tuple node label) -> LNode { node, label }) vs
 
