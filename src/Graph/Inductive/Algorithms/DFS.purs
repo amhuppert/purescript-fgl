@@ -61,7 +61,7 @@ import Prelude
 
 import Control.MonadPlus (guard)
 import Data.Lazy as Lazy
-import Data.List.Lazy (List, Step(..))
+import Data.List.Lazy (List(..), Step(..))
 import Data.List.Lazy as List
 import Data.Map (Map)
 import Data.Map as Map
@@ -100,8 +100,9 @@ xdfsWith getVisitNext f visit graph = go visit graph
                 Just (Decomp {context, remaining}) ->
                   let curr = f context
                       next = getVisitNext context <> vs
-                      rest = go next (Lazy.force remaining)
-                  in List.cons curr rest
+                  in List $
+                     Lazy.defer \_ ->
+                     Cons curr (go next (Lazy.force remaining))
 
 dfsWith  :: forall gr k a b c. Ord k => Graph gr
          => CFun k a b c
@@ -189,6 +190,7 @@ xdfWith :: forall gr k a b c. Graph gr => Ord k
     -> List k
     -> gr k a b
     -> Tuple (List (Tree c)) (gr k a b)
+-- FIXME This function is monolithic. Need to make incremental or replace lazy types with strict ones.
 xdfWith _ _ _ g | Graph.isEmpty g = Tuple List.nil g
 xdfWith getNext f toVisit g =
   case List.step toVisit of

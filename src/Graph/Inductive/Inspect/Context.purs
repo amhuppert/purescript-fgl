@@ -7,6 +7,7 @@ module Graph.Inductive.Inspect.Context
    , degree
    , outDegree
    , inDegree
+   , node
    ) where
 
 import Prelude
@@ -60,3 +61,6 @@ inDegree = List.length <<< A.incomersFromContext
 -- | The degree of a 'Context'.
 degree :: forall k a b. Context k a b -> Int
 degree (Context c) = List.length c.incomers + List.length c.outgoers
+
+node :: forall k a b. Context k a b -> k
+node (Context c) = c.node
