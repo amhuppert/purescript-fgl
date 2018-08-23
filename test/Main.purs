@@ -200,6 +200,14 @@ transitiveReductionTests = describe "Graph.Inductive.Algorithms.TransitiveReduct
       let result = transitiveReduction simple
           matchesExpected = result `equal` trOfSimple
       matchesExpected `shouldEqual` true
+    it "should reduce another simple graph g2" do
+      let result = transitiveReduction g2
+          matchesExpected = result `equal` trOfG2
+      matchesExpected `shouldEqual` true
+    it "should reduce another simple graph g3" do
+      let result = transitiveReduction g3
+          matchesExpected = result `equal` trOfG3
+      matchesExpected `shouldEqual` true
 
   where simple :: Gr Int Unit Unit
         simple = mkUnlabeledGraph
@@ -212,6 +220,36 @@ transitiveReductionTests = describe "Graph.Inductive.Algorithms.TransitiveReduct
           [1,2,3]
           [ Edge { from: 1, to: 2 }
           , Edge { from: 2, to: 3 }
+          ]
+        g2 :: Gr Char Unit Unit
+        g2 = mkUnlabeledGraph
+          [ 'A', 'B', 'C', 'D' ]
+          [ Edge { from: 'C', to: 'B' }
+          , Edge { from: 'B', to: 'D' }
+          , Edge { from: 'A', to: 'B' }
+          , Edge { from: 'A', to: 'D' } -- this edge should be removed
+          ]
+        trOfG2 :: Gr Char Unit Unit
+        trOfG2 = mkUnlabeledGraph
+          [ 'A', 'B', 'C', 'D' ]
+          [ Edge { from: 'C', to: 'B' }
+          , Edge { from: 'B', to: 'D' }
+          , Edge { from: 'A', to: 'B' }
+          ]
+        g3 :: Gr Char Unit Unit
+        g3 = mkUnlabeledGraph
+          [ 'A', 'B', 'C', 'D' ]
+          [ Edge { from: 'C', to: 'B' }
+          , Edge { from: 'B', to: 'A' }
+          , Edge { from: 'D', to: 'B' }
+          , Edge { from: 'D', to: 'A' } -- this edge should be removed
+          ]
+        trOfG3 :: Gr Char Unit Unit
+        trOfG3 = mkUnlabeledGraph
+          [ 'A', 'B', 'C', 'D' ]
+          [ Edge { from: 'C', to: 'B' }
+          , Edge { from: 'B', to: 'A' }
+          , Edge { from: 'D', to: 'B' }
           ]
 
 dfsTests :: Spec Unit
