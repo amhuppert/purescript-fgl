@@ -282,9 +282,16 @@ postflattenForest ts = List.concatMap postflatten ts
 topologicalSort :: forall gr k a b. Ord k => Graph gr => gr k a b -> List k
 topologicalSort = List.reverse <<< postflattenForest <<< dffAll
 
+-- | Topological sort of the graph after reversing all of its edges.
+revTopologicalSort :: forall gr k a b. Ord k => Graph gr => gr k a b -> List k
+revTopologicalSort = List.reverse <<< postflattenForest <<< revDffAll
+
 -- | 'topologicalSort', returning only the labels of the nodes.
 topologicalSort' :: forall gr k a b. Ord k => Graph gr => gr k a b -> List a
 topologicalSort' = List.reverse <<< Tree.postorderForest <<< dffAllWith A.labelFromContext
+
+revTopologicalSort' :: forall gr k a b. Ord k => Graph gr => gr k a b -> List a
+revTopologicalSort' = List.reverse <<< Tree.postorderForest <<< revDffAllWith A.labelFromContext
 
 -- | Collection of strongly connected components
 stronglyConnectedComponents :: forall gr k a b. Ord k => Graph gr => gr k a b -> List (List k)
