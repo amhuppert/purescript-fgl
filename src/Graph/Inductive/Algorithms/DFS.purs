@@ -301,6 +301,10 @@ stronglyConnectedComponents g = map Tree.preorder (revDff (topologicalSort g) g)
 reachable :: forall gr k a b. Ord k => Graph gr => k -> gr k a b -> List k
 reachable v g = Tree.preorderForest (dff (List.singleton v) g)
 
+-- | Collection of nodes reachable from a starting point by following edges in reverse.
+revReachable :: forall gr k a b. Ord k => Graph gr => k -> gr k a b -> List k
+revReachable v g = Tree.preorderForest (revDff (List.singleton v) g)
+
 -- | The condensation of the given graph, i.e., the graph of its
 -- | strongly connected components.
 condensation :: forall gr k a b. Ord k => Ord k => Graph gr => gr k a b -> gr Int (List k) Unit
