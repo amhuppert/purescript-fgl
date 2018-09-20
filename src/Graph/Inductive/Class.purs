@@ -47,6 +47,8 @@ class Graph gr <= DynGraph gr where
   -- | The incident edges within the context **must** only refer to nodes that already exist in the graph or to the node being merged.
   merge :: forall k a b. Ord k => Context k a b -> gr k a b -> gr k a b
 
+  mapNode :: forall k a b. Ord k => (a -> a) -> k -> gr k a b -> gr k a b
+
   -- | Transform the labels for all nodes in the Graph.
   mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> gr k a b -> gr k a' b
 

@@ -1,14 +1,12 @@
 module Graph.Inductive.Transform where
 
 import Prelude
-import Data.Lazy as Lazy
 import Data.List as List
-import Data.Maybe (Maybe(..))
 import Data.Newtype (over)
-import Graph.Inductive.Class (class DynGraph, (&))
+import Graph.Inductive.Class (class DynGraph)
 import Graph.Inductive.Class as Graph
 import Graph.Inductive.Core as Core
-import Graph.Inductive.Types (Context(..), GraphDecomposition(..), IncidentEdge(..), UGraph)
+import Graph.Inductive.Types (Context(..), IncidentEdge(..), UGraph)
 
 mapContexts :: forall gr k a b c d. Ord k => DynGraph gr => (Context k a b -> Context k c d) -> gr k a b -> gr k c d
 mapContexts f = Core.fold (\c gr -> Graph.merge (f c) gr) Graph.empty
@@ -35,13 +33,7 @@ mapNodesEdges nodeMapper edgeMapper = mapContexts (over Context updateContextRec
         updateELabel (IncidentEdge {node,label}) = IncidentEdge {node, label: edgeMapper label}
 
 modifyNodeLabel :: forall gr k a b. Ord k => DynGraph gr => (a -> a) -> k -> gr k a b -> gr k a b
-modifyNodeLabel f v g =
-  case Graph.match v g of
-    Nothing -> g
-    Just (Decomp { context: Context c, remaining }) ->
-      let c' = c { label = f c.label }
-       in Context c' & Lazy.force remaining
-
+modifyNodeLabel = Graph.mapNode
 
 -- | Reverse the direction of all edges.
 reverseEdges :: forall gr k a b. Ord k => DynGraph gr => gr k a b -> gr k a b

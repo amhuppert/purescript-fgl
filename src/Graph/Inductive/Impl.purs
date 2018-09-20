@@ -123,6 +123,9 @@ instance grMapDynGraph :: DynGraph Gr where
                 , addTo: node
                 }
 
+  mapNode f key (Gr g) = Gr $ Map.update (\c -> Just (updateContext c)) key g
+    where updateContext (Context' c) = Context' c { label = f c.label }
+
   mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> Gr k a b -> Gr k a' b
   mapNodesWithKey f (Gr g) = Gr $ mapWithIndex f' g
     where f' k (Context' c) = Context' (c { label = f k c.label })
