@@ -51,9 +51,12 @@ module Graph.Inductive.Algorithms.DFS
          postflatten,
          postflattenForest,
          topologicalSort,
+         revTopologicalSort,
          topologicalSort',
+         revTopologicalSort',
          stronglyConnectedComponents,
          reachable,
+         revReachable,
          condensation
        ) where
 
