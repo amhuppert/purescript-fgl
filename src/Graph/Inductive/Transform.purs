@@ -32,9 +32,6 @@ mapNodesEdges nodeMapper edgeMapper = mapContexts (over Context updateContextRec
         updateIncEdges = map updateELabel
         updateELabel (IncidentEdge {node,label}) = IncidentEdge {node, label: edgeMapper label}
 
-modifyNodeLabel :: forall gr k a b. Ord k => DynGraph gr => (a -> a) -> k -> gr k a b -> gr k a b
-modifyNodeLabel = Graph.mapNode
-
 -- | Reverse the direction of all edges.
 reverseEdges :: forall gr k a b. Ord k => DynGraph gr => gr k a b -> gr k a b
 reverseEdges = mapContexts (\(Context c) -> Context $ c { incomers = c.outgoers, outgoers = c.incomers })
