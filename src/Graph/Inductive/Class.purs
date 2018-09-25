@@ -27,6 +27,10 @@ class Graph gr where
   -- | Get a list of all LNodes in the Graph
   labNodes :: forall k a b. gr k a b -> List (LNode k a)
 
+  nodeLabel :: forall k a b. Ord k => k -> gr k a b -> Maybe a
+
+  edgeLabel :: forall k a b. Ord k => (Edge k) -> gr k a b -> List b
+
   -- | A list of all labeled edges in the Graph
   labEdges :: forall k a b. gr k a b -> List (LEdge k b)
 

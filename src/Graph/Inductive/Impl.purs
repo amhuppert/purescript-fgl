@@ -12,7 +12,7 @@ import Data.List (List(..))
 import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..))
 import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, match)
 import Graph.Inductive.Core (insEdges)
@@ -67,6 +67,14 @@ instance grMapGraph :: Graph Gr where
                                                    ) labels
 
   edgeContext = edgeContextImpl
+
+  nodeLabel k (Gr g) = do
+    Context' c <- Map.lookup k g
+    pure c.label
+
+  edgeLabel (Edge e) (Gr g) = fromMaybe Nil do
+    Context' sourceContext <- Map.lookup e.from g
+    Map.lookup e.to sourceContext.outgoers
 
 -- | O[log(n) + d*log(n)] where d is the degree of the matched node.
 matchGr :: forall k a b. Ord k => k -> Gr k a b -> Maybe (GraphDecomposition Gr k a b)
