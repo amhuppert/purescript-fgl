@@ -1,12 +1,13 @@
 module Graph.Inductive.Transform where
 
 import Prelude
+
 import Data.List as List
 import Data.Newtype (over)
 import Graph.Inductive.Class (class DynGraph)
 import Graph.Inductive.Class as Graph
 import Graph.Inductive.Core as Core
-import Graph.Inductive.Types (Context(..), IncidentEdge(..), UGraph)
+import Graph.Inductive.Types (Context(..), Edge(..), IncidentEdge(..), UGraph)
 
 mapContexts :: forall gr k a b c d. Ord k => DynGraph gr => (Context k a b -> Context k c d) -> gr k a b -> gr k c d
 mapContexts f = Core.fold (\c gr -> Graph.merge (f c) gr) Graph.empty
@@ -22,6 +23,19 @@ mapEdges f = mapContexts (over Context updateContextRec)
                                }
         updateIncEdges = map updateLabel
         updateLabel (IncidentEdge {node,label}) = IncidentEdge {node, label: f label}
+
+mapEdgesWithKey :: forall gr k a b b'. Ord k => DynGraph gr => (Edge k -> b -> b') -> gr k a b -> gr k a b'
+mapEdgesWithKey f = mapContexts (over Context updateContextRec)
+  where updateContextRec c = c { incomers = map (updateIncomer c.node) c.incomers
+                               , outgoers = map (updateOutgoer c.node) c.outgoers
+                               }
+        updateIncomer target ie@(IncidentEdge {node: source}) =
+          let edge = Edge { from: source, to: target }
+           in updateLabel edge ie
+        updateOutgoer source ie@(IncidentEdge {node: target}) =
+          let edge = Edge { from: source, to: target }
+           in updateLabel edge ie
+        updateLabel edge (IncidentEdge {node,label}) = IncidentEdge {node, label: f edge label}
 
 mapNodesEdges :: forall gr k a b a' b'. Ord k => DynGraph gr => (a -> a') -> (b -> b') -> gr k a b -> gr k a' b'
 mapNodesEdges nodeMapper edgeMapper = mapContexts (over Context updateContextRec)

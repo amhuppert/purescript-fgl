@@ -58,5 +58,4 @@ class Graph gr <= DynGraph gr where
   -- | Transform the labels for all nodes in the Graph.
   mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> gr k a b -> gr k a' b
 
-
 infixr 8 merge as &
