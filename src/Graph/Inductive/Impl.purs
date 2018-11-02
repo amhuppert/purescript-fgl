@@ -5,6 +5,7 @@ module Graph.Inductive.Impl
 
 import Prelude
 
+import Data.Array as Array
 import Data.Foldable (foldl, foldr)
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.Lazy as Lazy
@@ -14,7 +15,7 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..))
-import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, match)
+import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, labEdges, labNodes, match)
 import Graph.Inductive.Core (insEdges)
 import Graph.Inductive.Types (Context(..), Edge(..), EdgeContext(..), GraphDecomposition(..), IncidentEdge(..), IncidentEdges, LEdge(..), LNode(..))
 
@@ -28,6 +29,15 @@ derive instance eqContext' :: (Eq k, Eq a, Eq b) => Eq (Context' k a b)
 derive newtype instance showContext' :: (Show k, Show a, Show b) => Show (Context' k a b)
 
 newtype Gr k a b = Gr (GrRep k a b)
+
+instance showGr :: (Show k, Show a, Show b) => Show (Gr k a b) where
+  show g =
+    let nodes = labNodes g
+        edges = labEdges g
+     in "Gr[nodes=" <> showNodes nodes <> ", edges=" <> showEdges edges <> "]"
+    where
+      showNodes = show <<< Array.fromFoldable
+      showEdges = show <<< Array.fromFoldable
 
 type GrRep k a b = Map k (Context' k a b)
 
