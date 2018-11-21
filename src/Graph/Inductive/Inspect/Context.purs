@@ -12,7 +12,7 @@ module Graph.Inductive.Inspect.Context
 
 import Prelude
 
-import Graph.Inductive.Types (Context(..), ContextRec, Edge(..), IncidentEdge(..), LEdge(..))
+import Graph.Inductive.Types (Context(..), Edge(..), IncidentEdge(..), LEdge(..))
 import Graph.Inductive.Types.Accessors as A
 import Data.List (List)
 import Data.List as List
@@ -39,16 +39,21 @@ predecessors' = map A.nodeFromIncidentEdge <<< A.incomersFromContext
 
 -- | All outward-directed 'LEdge's in a 'Context'.
 outgoers :: forall k a b. Context k a b -> List (LEdge k b)
-outgoers (Context c) = map (incidentEdgeToLEdge c) c.outgoers
-
-incidentEdgeToLEdge :: forall k a b. ContextRec k a b -> IncidentEdge k b -> LEdge k b
-incidentEdgeToLEdge c (IncidentEdge { label, node: to }) =
-  let edge = Edge { from: c.node, to }
-  in LEdge { edge, label }
+outgoers (Context c) = map fromIncidentEdge c.outgoers
+  where
+    fromIncidentEdge (IncidentEdge {label, node: to}) =
+      LEdge { label
+            , edge: Edge { from: c.node, to }
+            }
 
 -- | All inward-directed 'LEdge's in a 'Context'.
 incomers :: forall k a b. Context k a b -> List (LEdge k b)
-incomers (Context c) = map (incidentEdgeToLEdge c) c.incomers
+incomers (Context c) = map fromIncidentEdge c.incomers
+  where
+    fromIncidentEdge (IncidentEdge {label, node: from}) =
+      LEdge { label
+            , edge: Edge { from, to: c.node }
+            }
 
 -- | The outward degree of a 'Context'.
 outDegree :: forall k a b. Ord k => Context k a b -> Int
