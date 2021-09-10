@@ -55,6 +55,8 @@ getNodeFromContext (Context {node}) = node
 fromDecomp :: forall gr k e v. GraphDecomposition gr k e v -> Tuple (Context k e v) (gr k e v) 
 fromDecomp (Decomp {context, remaining}) = Tuple context (force remaining)
 
+-- I think this is the "all rotations" Comonad as described in http://blog.higher-order.com/blog/2016/04/02/a-comonad-of-graph-decompositions/
+-- not the "recurive decompositions” comonad.
 instance extendGraphGr :: (Ord k, DynGraph gr) => Extend (PointedGraph gr k edge) where
   extend f x@(PointedGraph c _) = case matchAny (extend' x f (uncurry merge (fromDecomp $ decompose x))) of
     Nothing -> unsafeThrowException $ error "Unreachable. There is at least one node in the source and nodes are never dropped."
