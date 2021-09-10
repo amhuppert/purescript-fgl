@@ -5,18 +5,22 @@ module Graph.Inductive.Impl
 
 import Prelude
 
+import Control.Comonad
 import Data.Array as Array
 import Data.Foldable (foldl, foldr)
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.Lazy as Lazy
-import Data.List (List(..))
+import Data.List (List(..), (:))
 import Data.List as List
-import Data.Map (Map)
+import Data.Map (Map, fromFoldable, fromFoldableWith)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Tuple (Tuple(..))
-import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, labEdges, labNodes, match)
+import Data.Newtype (overF)
+import Data.Tuple (Tuple(..), uncurry)
+import Effect.Exception.Unsafe (unsafeThrowException)
+import Graph.Inductive.Class (class DynGraph, class Graph, class OrdGraph, labEdges, labNodes, match, matchAny, empty, merge)
 import Graph.Inductive.Core (insEdges)
+import Graph.Inductive.Inspect.Context (incomers, outgoers)
 import Graph.Inductive.Types (Context(..), Edge(..), EdgeContext(..), GraphDecomposition(..), IncidentEdge(..), IncidentEdges, LEdge(..), LNode(..))
 
 type AdjMap k b = Map k (List b)
@@ -70,7 +74,7 @@ instance grMapGraph :: Graph Gr where
     where toLEdges :: forall k a b. Tuple k (Context' k a b) -> List (LEdge k b)
           toLEdges (Tuple from (Context' c)) = List.concatMap (adjsToLEdge from)
                                                               (Map.toUnfoldable c.outgoers)
-          adjsToLEdge :: forall k a b. k -> Tuple k (List b) -> List (LEdge k b)
+          adjsToLEdge :: forall k b. k -> Tuple k (List b) -> List (LEdge k b)
           adjsToLEdge from (Tuple to labels) = map (\l -> LEdge { edge: Edge { from, to }
                                                                 , label: l
                                                                 }
@@ -205,3 +209,5 @@ edgeContextImpl (Edge edge) (Gr graphRep) = do
 instance ordGraphGr :: OrdGraph Gr where
   minNode (Gr g) = _.key <$> Map.findMin g
   maxNode (Gr g) = _.key <$> Map.findMax g
+
+

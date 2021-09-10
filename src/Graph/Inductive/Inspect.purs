@@ -1,7 +1,7 @@
 module Graph.Inductive.Inspect where
 
-import Graph.Inductive.Class
-import Graph.Inductive.Types
+import Graph.Inductive.Class (class Graph, labEdges, labNodes, match)
+import Graph.Inductive.Types (Context(..), Edge(..), LEdge)
 import Prelude
 
 import Graph.Inductive.Core (fold)

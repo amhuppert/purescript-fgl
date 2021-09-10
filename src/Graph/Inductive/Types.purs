@@ -1,6 +1,5 @@
 module Graph.Inductive.Types where
 
-
 import Prelude
 
 import Data.Lazy (Lazy)
