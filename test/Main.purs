@@ -11,6 +11,7 @@ import Data.List.Lazy as LL
 import Data.List.Lazy as LazyList
 import Data.Maybe (Maybe(Just, Nothing), isJust)
 import Effect (Effect)
+import Effect.Aff (launchAff_)
 import Graph.Inductive.Algorithms.DFS (dfs, revDfs)
 import Graph.Inductive.Algorithms.TransitiveReduction (transitiveReduction)
 import Graph.Inductive.Class (empty, isEmpty, labEdges, labNodes, match, maxNode, minNode, mkGraph, order)
@@ -23,13 +24,13 @@ import Graph.Inductive.Inspect (elem)
 import Graph.Inductive.Tree as Tree
 import Graph.Inductive.Types (Context(..), Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
 import Graph.Inductive.Types.Accessors as A
-import Test.Spec (Spec, describe, it, pending)
+import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
-import Test.Spec.Runner (run)
+import Test.Spec.Runner (runSpec)
 
 main :: Effect Unit
-main = run [consoleReporter] $ do
+main = launchAff_ $ runSpec [consoleReporter] $ do
   dfsTests
   transitiveReductionTests
   coreTests
