@@ -1,12 +1,11 @@
-module PointedGraph where
+module Graph.Inductive.PointedGraph where
 
-import Control.Comonad
-import Data.Maybe
-import Data.Tuple
-import Data.Tuple.Nested
-import Graph.Inductive.Class
-import Graph.Inductive.Types
-import Prelude
+import Prelude hiding (compose)
+import Control.Comonad (class Comonad, class Extend)
+import Data.Maybe (Maybe(..))
+import Data.Tuple (Tuple(..), uncurry)
+import Graph.Inductive.Class (class DynGraph, empty, match, matchAny, merge)
+import Graph.Inductive.Types (Context(..), GraphDecomposition(..))
 
 import Data.Lazy (defer, force)
 import Effect.Exception (error)

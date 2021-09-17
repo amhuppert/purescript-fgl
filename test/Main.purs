@@ -2,6 +2,7 @@ module Test.Main where
 
 import Prelude
 
+import Control.Comonad (extract)
 import Data.Array as Array
 import Data.Function (on)
 import Data.Lazy as Lazy
@@ -24,6 +25,7 @@ import Graph.Inductive.Inspect (elem)
 import Graph.Inductive.Tree as Tree
 import Graph.Inductive.Types (Context(..), Edge(..), GraphDecomposition(..), LEdge(..), LNode(..))
 import Graph.Inductive.Types.Accessors as A
+import Graph.Inductive.PointedGraph (PointedGraph(..), refocus)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
@@ -188,6 +190,26 @@ main = launchAff_ $ runSpec [consoleReporter] $ do
             LEdge { edge: Edge {from: 2, to: 2}, label: "D" }] -> do
               pure unit
           r -> fail "labNodes returned bad result"
+  describe "pointedGraph" do
+    it "should refocus a pointed graph comonad" do
+      let g :: Gr Int String Unit 
+          g = mkGraph [ labelNode 1 "A"
+                      , labelNode 2 "B"
+                      ]
+                      [ labelEdge (Edge {from: 1, to: 2}) unit
+                      , labelEdge (Edge {from: 1, to: 2}) unit
+                      , labelEdge (Edge {from: 2, to: 1}) unit
+                      ]
+          p :: PointedGraph Gr Int Unit String
+          p = PointedGraph (
+            Context 
+              { incomers : Nil
+              , node : 0
+              , label : "0"
+              , outgoers : Nil
+              }) g
+      extract p `shouldEqual` "0"
+      extract (refocus p 1) `shouldEqual` "A"
 
 hasIncomerFrom :: forall k a b. Eq k => Context k a b -> k -> Boolean
 hasIncomerFrom (Context context) from = (not <<< List.null) $ List.filter (A.nodeFromIncidentEdge >>> (_ == from)) context.incomers
