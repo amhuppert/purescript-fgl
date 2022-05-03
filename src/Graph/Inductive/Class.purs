@@ -59,3 +59,4 @@ class Graph gr <= DynGraph gr where
   mapNodesWithKey :: forall k a b a'. (k -> a -> a') -> gr k a b -> gr k a' b
 
 infixr 8 merge as &
+
